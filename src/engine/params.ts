@@ -29,6 +29,8 @@ export interface TornoParams {
   // --- modo FORMA ---
   forma: ShapeKind;
   formaPath: string;  // path SVG pegado por el usuario (si forma === 'custom')
+  formaLetra: string; // texto del contenedor LETRA (1–4 caracteres)
+  formaBorde: boolean; // contornea el contenedor con la tinta (sellos/insignias)
 
   // --- modo RETRATO ---
   retratoTrazo: TrazoKind;   // forma de la línea de grabado
@@ -56,7 +58,7 @@ export function lienzoDims(l: LienzoKind): View {
   return { w, h };
 }
 
-export type ShapeKind = 'circulo' | 'pildora' | 'o-cauce' | 'custom';
+export type ShapeKind = 'circulo' | 'o-cauce' | 'pildora' | 'arco' | 'rombo' | 'letra' | 'custom';
 
 export const DEFAULTS: TornoParams = {
   curso: 0,
@@ -71,6 +73,8 @@ export const DEFAULTS: TornoParams = {
   vivo: false,
   forma: 'o-cauce',
   formaPath: '',
+  formaLetra: 'C',
+  formaBorde: false,
   colorFondo: '#F6F4EF',
   colorTinta: '#101012',
   colorDeriva: '#177E70',
@@ -123,10 +127,10 @@ export const PRESETS: Preset[] = [
     params: { curso: 12, caudal: 360, cauce: 70, corriente: 62, calado: 0.75, marea: 78, deriva: 3, orillas: 3, semilla: 9051 },
   },
   {
-    nombre: 'Sello',
-    descripcion: 'Modo FORMA · círculo denso direccional',
-    mode: 'forma',
-    params: { curso: 20, caudal: 240, cauce: 60, corriente: 20, calado: 1, marea: 30, deriva: 0, orillas: 0, semilla: 3312, forma: 'o-cauce' },
+    nombre: 'Telar',
+    descripcion: 'Dos tramas cruzadas a 90° — tejido de corrientes',
+    mode: 'patron',
+    params: { curso: 0, caudal: 170, cauce: 45, corriente: 16, calado: 0.9, marea: 26, deriva: 90, orillas: 6, semilla: 5150 },
   },
 ];
 
@@ -203,8 +207,11 @@ export function coerceParams(input: unknown): TornoParams {
   if (o.colorway === 'agua/papel') { p.colorFondo = '#F6F4EF'; p.colorTinta = '#177E70'; p.colorDeriva = '#177E70'; }
   else if (o.colorway === 'papel/agua') { p.colorFondo = '#177E70'; p.colorTinta = '#F6F4EF'; p.colorDeriva = '#F6F4EF'; }
   else if (o.colorway === 'tinta/papel') { p.colorFondo = '#F6F4EF'; p.colorTinta = '#101012'; p.colorDeriva = '#101012'; }
-  if (o.forma === 'circulo' || o.forma === 'pildora' || o.forma === 'o-cauce' || o.forma === 'custom') p.forma = o.forma;
+  if (o.forma === 'circulo' || o.forma === 'pildora' || o.forma === 'o-cauce' || o.forma === 'arco'
+    || o.forma === 'rombo' || o.forma === 'letra' || o.forma === 'custom') p.forma = o.forma;
   if (typeof o.formaPath === 'string') p.formaPath = o.formaPath;
+  if (typeof o.formaLetra === 'string' && o.formaLetra.trim()) p.formaLetra = o.formaLetra.trim().slice(0, 4);
+  if (typeof o.formaBorde === 'boolean') p.formaBorde = o.formaBorde;
   if (typeof o.vivo === 'boolean') p.vivo = o.vivo;
   num('motionSegundos', { min: 1, max: 15, step: 1 });
   if (typeof o.motionLoop === 'boolean') p.motionLoop = o.motionLoop;

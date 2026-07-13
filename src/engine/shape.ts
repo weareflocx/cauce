@@ -25,9 +25,30 @@ function stadiumPath(cx: number, cy: number, w: number, h: number): string {
   );
 }
 
+/** Path de un arco arquitectónico (puerta): rectángulo con remate semicircular. */
+function archPath(cx: number, cy: number, w: number, h: number): string {
+  const r = w / 2;
+  const x0 = cx - r;
+  const x1 = cx + r;
+  const y0 = cy - h / 2;
+  const y1 = cy + h / 2;
+  return (
+    `M${x0} ${y1}` +
+    `L${x0} ${y0 + r}` +
+    `A${r} ${r} 0 0 1 ${x1} ${y0 + r}` +
+    `L${x1} ${y1}Z`
+  );
+}
+
+/** Path de un rombo. */
+function rhombusPath(cx: number, cy: number, rx: number, ry: number): string {
+  return `M${cx} ${cy - ry}L${cx + rx} ${cy}L${cx} ${cy + ry}L${cx - rx} ${cy}Z`;
+}
+
 /**
  * Devuelve el atributo `d` del contenedor de FORMA. La "O de cauce" es un
- * anillo (letterform), no un mandala: el patrón lo rellena manteniendo dirección.
+ * anillo (letterform), no un mandala: el patrón lo rellena manteniendo
+ * dirección. LETRA no pasa por aquí (se recorta con <text>).
  */
 export function shapePath(kind: ShapeKind, customPath: string, view: View): { d: string; fillRule: 'nonzero' | 'evenodd' } {
   const CX = view.w / 2;
@@ -41,6 +62,11 @@ export function shapePath(kind: ShapeKind, customPath: string, view: View): { d:
     case 'o-cauce':
       // Anillo: círculo exterior + interior, relleno evenodd.
       return { d: circlePath(CX, CY, R, 1) + circlePath(CX, CY, R * 0.52, 0), fillRule: 'evenodd' };
+    case 'arco':
+      return { d: archPath(CX, CY, Math.min(view.w, view.h) * 0.6, Math.min(view.w, view.h) * 0.82), fillRule: 'nonzero' };
+    case 'rombo':
+      return { d: rhombusPath(CX, CY, Math.min(view.w, view.h) * 0.46, Math.min(view.w, view.h) * 0.46), fillRule: 'nonzero' };
+    case 'letra':
     case 'custom':
       return { d: customPath || circlePath(CX, CY, R), fillRule: 'nonzero' };
   }

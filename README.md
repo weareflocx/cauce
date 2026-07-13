@@ -31,8 +31,10 @@ Abre `http://localhost:5173`.
   (2ª trama en sombras profundas), EXPOSICIÓN y CONTRASTE. ENCUADRE escala la foto
   y arrastrando el lienzo la recolocas (recorte). CORRIENTE VIVA también anima el
   grabado y permite exportarlo a WebM/GIF.
-- **FORMA** — el patrón recortado dentro de un contenedor (círculo, píldora, «O de
-  cauce» o un `path` SVG pegado por ti). Para iconos, sellos y assets de sistema.
+- **FORMA** — el patrón recortado dentro de un contenedor: círculo, «O de cauce»,
+  píldora, arco, rombo, **LETRA** (hasta 4 caracteres — monogramas, «CAZ»…) o un
+  `path` SVG pegado por ti. Toggle **BORDE** para contornear el contenedor con la
+  tinta (sellos, insignias). Para iconos y assets de sistema.
 
 ## Vocabulario de parámetros
 

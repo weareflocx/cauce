@@ -1,11 +1,19 @@
 import { FlowEngine, type Line } from './field';
 import type { TornoParams, View } from './params';
 
+export const FORMA_FONT = "Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif";
+export const FORMA_FONT_BASE = 100; // px de referencia para medir la letra
+
 export interface FrameShape {
-  d: string;
-  fillRule: CanvasFillRule;
-  /** Ajuste (para path pegado): escala + traslación al centro del lienzo. */
+  /** Contenedor por path (todas las formas salvo LETRA). */
+  d?: string;
+  fillRule?: CanvasFillRule;
+  /** Contenedor por texto (LETRA): se enmascara por composición. */
+  text?: string;
+  /** Ajuste al lienzo: traslación + escala (para path pegado y letra). */
   fit?: { tx: number; ty: number; s: number } | null;
+  /** BORDE: contornea el contenedor con la tinta. Grosor en px de lienzo. */
+  strokeWidth?: number;
 }
 
 function strokeLines(ctx: CanvasRenderingContext2D, lines: Line[]): void {
@@ -17,6 +25,37 @@ function strokeLines(ctx: CanvasRenderingContext2D, lines: Line[]): void {
     for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
   }
   ctx.stroke();
+}
+
+function drawTramas(
+  ctx: CanvasRenderingContext2D,
+  params: TornoParams,
+  engine: FlowEngine,
+  phase: number,
+  view: View,
+): void {
+  const { main, moire } = engine.generate(params, phase, view);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  if (moire.length) {
+    ctx.strokeStyle = params.colorDeriva;
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = params.calado * 0.85;
+    strokeLines(ctx, moire);
+    ctx.globalAlpha = 1;
+  }
+  ctx.strokeStyle = params.colorTinta;
+  ctx.lineWidth = params.calado;
+  strokeLines(ctx, main);
+}
+
+function shapePath2D(shape: FrameShape): Path2D {
+  const base = new Path2D(shape.d);
+  if (!shape.fit) return base;
+  const m = new DOMMatrix([shape.fit.s, 0, 0, shape.fit.s, shape.fit.tx, shape.fit.ty]);
+  const path = new Path2D();
+  path.addPath(base, m);
+  return path;
 }
 
 /**
@@ -42,37 +81,53 @@ export function drawPatternFrame(
   ctx.fillStyle = params.colorFondo;
   ctx.fillRect(0, 0, outW, outH);
 
+  // ---- LETRA: patrón en canvas aparte enmascarado por el texto ----
+  if (shape?.text && shape.fit) {
+    const off = document.createElement('canvas');
+    off.width = outW;
+    off.height = outH;
+    const octx = off.getContext('2d')!;
+    octx.scale(sx, sy);
+    drawTramas(octx, params, engine, phase, view);
+    // máscara: sólo queda el patrón dentro de la letra
+    octx.globalCompositeOperation = 'destination-in';
+    octx.fillStyle = '#000';
+    octx.font = `800 ${FORMA_FONT_BASE * shape.fit.s}px ${FORMA_FONT}`;
+    octx.fillText(shape.text, shape.fit.tx, shape.fit.ty);
+    ctx.drawImage(off, 0, 0);
+
+    if (shape.strokeWidth) {
+      ctx.save();
+      ctx.scale(sx, sy);
+      ctx.strokeStyle = params.colorTinta;
+      ctx.lineWidth = shape.strokeWidth;
+      ctx.font = `800 ${FORMA_FONT_BASE * shape.fit.s}px ${FORMA_FONT}`;
+      ctx.strokeText(shape.text, shape.fit.tx, shape.fit.ty);
+      ctx.restore();
+    }
+    return;
+  }
+
   ctx.save();
   ctx.scale(sx, sy); // trabajar en coordenadas lógicas del lienzo
 
-  if (shape) {
-    let path: Path2D;
-    if (shape.fit) {
-      const base = new Path2D(shape.d);
-      const m = new DOMMatrix([shape.fit.s, 0, 0, shape.fit.s, shape.fit.tx, shape.fit.ty]);
-      path = new Path2D();
-      path.addPath(base, m);
-    } else {
-      path = new Path2D(shape.d);
+  let path: Path2D | null = null;
+  if (shape?.d) {
+    path = shapePath2D(shape);
+    ctx.save();
+    ctx.clip(path, shape.fillRule ?? 'nonzero');
+  }
+
+  drawTramas(ctx, params, engine, phase, view);
+
+  if (path) {
+    ctx.restore(); // levanta el clip
+    if (shape?.strokeWidth) {
+      ctx.strokeStyle = params.colorTinta;
+      ctx.lineWidth = shape.strokeWidth;
+      ctx.stroke(path);
     }
-    ctx.clip(path, shape.fillRule);
   }
-
-  const { main, moire } = engine.generate(params, phase, view);
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.lineWidth = params.calado;
-
-  if (moire.length) {
-    ctx.strokeStyle = params.colorDeriva;
-    ctx.globalAlpha = 0.6;
-    ctx.lineWidth = params.calado * 0.85;
-    strokeLines(ctx, moire);
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = params.calado;
-  }
-  ctx.strokeStyle = params.colorTinta;
-  strokeLines(ctx, main);
 
   ctx.restore();
 }

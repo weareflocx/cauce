@@ -6,7 +6,7 @@ import {
 import { FlowEngine, lineToPath, type Line } from './engine/field';
 import { shapePath } from './engine/shape';
 import { renderPortrait, renderPortraitTo, portraitLayout } from './engine/portrait';
-import { drawPatternFrame, type FrameShape } from './engine/render-canvas';
+import { drawPatternFrame, FORMA_FONT, FORMA_FONT_BASE, type FrameShape } from './engine/render-canvas';
 import {
   exportSVG, exportPNG, presetJSON, exportWebM, exportGIF, webmSupported,
   type MotionSource,
@@ -75,12 +75,41 @@ function fitTransform(customPath: string): string {
   return `translate(${f.tx.toFixed(2)} ${f.ty.toFixed(2)}) scale(${f.s.toFixed(4)})`;
 }
 
+/** Mide la letra a tamaño base y devuelve el ajuste al 80% del lienzo. */
+function fitTextBBox(content: string): { tx: number; ty: number; s: number } | null {
+  const tmp = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  tmp.setAttribute('font-family', FORMA_FONT);
+  tmp.setAttribute('font-weight', '800');
+  tmp.setAttribute('font-size', String(FORMA_FONT_BASE));
+  tmp.textContent = content;
+  svg.appendChild(tmp);
+  let bbox: DOMRect;
+  try { bbox = tmp.getBBox(); } catch { svg.removeChild(tmp); return null; }
+  svg.removeChild(tmp);
+  if (!bbox.width || !bbox.height) return null;
+  const s = Math.min((view.w * 0.8) / bbox.width, (view.h * 0.8) / bbox.height);
+  const tx = view.w / 2 - (bbox.x + bbox.width / 2) * s;
+  const ty = view.h / 2 - (bbox.y + bbox.height / 2) * s;
+  return { tx, ty, s };
+}
+
+function escapeXml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /** Info de forma para el render a canvas (export de vídeo/GIF). */
 function currentShape(): FrameShape | undefined {
   if (mode !== 'forma') return undefined;
+  const strokeWidth = params.formaBorde ? params.calado * 2.5 : undefined;
+  if (params.forma === 'letra') {
+    const content = (params.formaLetra || 'C').slice(0, 4);
+    const fit = fitTextBBox(content);
+    if (!fit) return undefined;
+    return { text: content, fit, strokeWidth };
+  }
   const { d, fillRule } = shapePath(params.forma, params.formaPath, view);
   const fit = params.forma === 'custom' && params.formaPath ? fitBBox(params.formaPath) : null;
-  return { d, fillRule, fit };
+  return { d, fillRule, fit, strokeWidth };
 }
 
 let animTime = 0;
@@ -116,14 +145,39 @@ function render(): void {
     svg.innerHTML = inner;
   } else {
     // FORMA: patrón recortado dentro del contenedor.
-    const { d, fillRule } = shapePath(params.forma, params.formaPath, view);
-    const transform = params.forma === 'custom' && params.formaPath ? fitTransform(params.formaPath) : '';
-    const clip = `<defs><clipPath id="caz-clip" clip-rule="${fillRule}">` +
-      `<path d="${d}" clip-rule="${fillRule}"${transform ? ` transform="${transform}"` : ''}/></clipPath></defs>`;
     let content = '';
     if (moire.length) content += linesToSVG(moire, params.colorDeriva, params.calado * 0.85, 0.6);
     content += linesToSVG(main, ink, params.calado);
-    svg.innerHTML = clip + `<g clip-path="url(#caz-clip)">${content}</g>`;
+
+    const borderW = params.calado * 2.5;
+    let clipInner = '';
+    let outline = '';
+
+    if (params.forma === 'letra') {
+      const text = escapeXml((params.formaLetra || 'C').slice(0, 4));
+      const fit = fitTextBBox(params.formaLetra || 'C');
+      if (fit) {
+        const tAttr = `transform="translate(${fit.tx.toFixed(2)} ${fit.ty.toFixed(2)}) scale(${fit.s.toFixed(4)})"`;
+        const fontAttr = `font-family="${FORMA_FONT}" font-weight="800" font-size="${FORMA_FONT_BASE}"`;
+        clipInner = `<text x="0" y="0" ${fontAttr} ${tAttr}>${text}</text>`;
+        if (params.formaBorde) {
+          outline = `<text x="0" y="0" ${fontAttr} ${tAttr} fill="none" stroke="${ink}" stroke-width="${(borderW / fit.s).toFixed(3)}">${text}</text>`;
+        }
+      }
+    } else {
+      const { d, fillRule } = shapePath(params.forma, params.formaPath, view);
+      const transform = params.forma === 'custom' && params.formaPath ? fitTransform(params.formaPath) : '';
+      const tAttr = transform ? ` transform="${transform}"` : '';
+      clipInner = `<path d="${d}" clip-rule="${fillRule}"${tAttr}/>`;
+      if (params.formaBorde) {
+        const f = params.forma === 'custom' && params.formaPath ? fitBBox(params.formaPath) : null;
+        const sw = f ? borderW / f.s : borderW;
+        outline = `<path d="${d}" fill="none" stroke="${ink}" stroke-width="${sw.toFixed(3)}"${tAttr}/>`;
+      }
+    }
+
+    const clip = `<defs><clipPath id="caz-clip">${clipInner}</clipPath></defs>`;
+    svg.innerHTML = clip + `<g clip-path="url(#caz-clip)">${content}</g>` + outline;
   }
 }
 
@@ -385,31 +439,64 @@ function buildPanel(): void {
 
   // FORMA (solo modo forma)
   if (mode === 'forma') {
+    const shapes: [ShapeKind, string][] = [
+      ['circulo', 'CÍRCULO'], ['o-cauce', 'O DE CAUCE'], ['pildora', 'PÍLDORA'],
+      ['arco', 'ARCO'], ['rombo', 'ROMBO'], ['letra', 'LETRA'], ['custom', 'PATH'],
+    ];
     const shapeWrap = el('div', 'seg');
-    const shapes: [ShapeKind, string][] = [['circulo', 'CÍRCULO'], ['pildora', 'PÍLDORA'], ['o-cauce', 'O DE CAUCE'], ['custom', 'PATH']];
-    shapes.forEach(([k, label]) => {
-      const b = el('button', params.forma === k ? 'active' : '', label) as HTMLButtonElement;
-      b.addEventListener('click', () => {
-        params.forma = k;
-        shapeWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
-        b.classList.add('active');
-        refreshJSON(); render();
-      });
-      shapeWrap.appendChild(b);
+
+    // LETRA: monograma / texto corto
+    const letraRow = el('div', 'row');
+    const letraInput = document.createElement('input');
+    letraInput.className = 'seed-input';
+    letraInput.type = 'text';
+    letraInput.maxLength = 4;
+    letraInput.value = params.formaLetra;
+    letraInput.placeholder = 'C';
+    letraInput.addEventListener('input', () => {
+      params.formaLetra = letraInput.value.trim().slice(0, 4) || 'C';
+      if (params.forma !== 'letra') selectShape('letra');
+      refreshJSON(); scheduleRender();
     });
+    letraRow.appendChild(letraInput);
+
     const pathArea = document.createElement('textarea');
     pathArea.className = 'json';
     pathArea.placeholder = 'Pega aquí un path SVG (atributo d) — se ajusta y centra solo';
     pathArea.value = params.formaPath;
     pathArea.addEventListener('input', () => {
       params.formaPath = pathArea.value.trim();
-      if (params.formaPath) {
-        params.forma = 'custom';
-        shapeWrap.querySelectorAll('button').forEach((x, i) => x.classList.toggle('active', shapes[i][0] === 'custom'));
-      }
+      if (params.formaPath && params.forma !== 'custom') selectShape('custom');
       refreshJSON(); scheduleRender();
     });
-    panel.appendChild(group('Forma (contenedor)', [shapeWrap, pathArea]));
+
+    const syncFormaVisibility = (): void => {
+      letraRow.classList.toggle('hidden', params.forma !== 'letra');
+      pathArea.classList.toggle('hidden', params.forma !== 'custom');
+    };
+
+    const selectShape = (k: ShapeKind): void => {
+      params.forma = k;
+      shapeWrap.querySelectorAll('button').forEach((x, i) => x.classList.toggle('active', shapes[i][0] === k));
+      syncFormaVisibility();
+      refreshJSON(); render();
+    };
+
+    shapes.forEach(([k, label]) => {
+      const b = el('button', params.forma === k ? 'active' : '', label) as HTMLButtonElement;
+      b.addEventListener('click', () => selectShape(k));
+      shapeWrap.appendChild(b);
+    });
+
+    const bordeToggle = makeToggle('BORDE (CONTORNO DE TINTA)', params.formaBorde, (on) => {
+      params.formaBorde = on; refreshJSON(); render();
+    });
+
+    syncFormaVisibility();
+    panel.appendChild(group('Forma (contenedor)', [
+      shapeWrap, letraRow, pathArea, bordeToggle,
+      el('div', 'hint-inline', 'El patrón rellena el contenedor manteniendo dirección. LETRA acepta hasta 4 caracteres (monogramas, «CAZ»…). BORDE lo contornea para sellos e insignias.'),
+    ]));
   }
 
   // RETRATO (solo modo retrato)

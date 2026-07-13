@@ -1,11 +1,11 @@
 import './style.css';
 import {
-  DEFAULTS, PRESETS, RANGES, coerceParams, inkPaper,
-  type Colorway, type Mode, type ShapeKind, type TornoParams, type TrazoKind,
+  DEFAULTS, PRESETS, RANGES, coerceParams, inkPaper, lienzoDims,
+  type Colorway, type LienzoKind, type Mode, type ShapeKind, type TornoParams, type TrazoKind, type View,
 } from './engine/params';
-import { FlowEngine, WIDTH, HEIGHT, lineToPath, type Line } from './engine/field';
+import { FlowEngine, lineToPath, type Line } from './engine/field';
 import { shapePath } from './engine/shape';
-import { renderPortrait, renderPortraitTo, portraitInk } from './engine/portrait';
+import { renderPortrait, renderPortraitTo, portraitInk, portraitLayout } from './engine/portrait';
 import { drawPatternFrame, type FrameShape } from './engine/render-canvas';
 import {
   exportSVG, exportPNG, presetJSON, exportWebM, exportGIF, webmSupported,
@@ -17,12 +17,24 @@ let mode: Mode = 'patron';
 let params: TornoParams = { ...DEFAULTS };
 let engine = new FlowEngine(params.semilla);
 let portraitImg: HTMLImageElement | null = null;
+let view: View = lienzoDims(params.lienzo);
+let exportScale = 2; // ×1 / ×2 / ×4 para PNG
 
 const svg = document.getElementById('lienzo') as unknown as SVGSVGElement;
 const canvas = document.getElementById('lienzo-canvas') as HTMLCanvasElement;
 const panel = document.getElementById('panel')!;
 const dropHint = document.getElementById('drop-hint')!;
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
+
+/** Aplica el tamaño de lienzo elegido al SVG y al canvas (2× interno). */
+function applyCanvasSize(): void {
+  view = lienzoDims(params.lienzo);
+  svg.setAttribute('viewBox', `0 0 ${view.w} ${view.h}`);
+  (svg as unknown as SVGElement).style.aspectRatio = `${view.w} / ${view.h}`;
+  canvas.width = view.w * 2;
+  canvas.height = view.h * 2;
+  canvas.style.aspectRatio = `${view.w} / ${view.h}`;
+}
 
 // ---------------- render ----------------
 let rafPending = false;
@@ -51,9 +63,9 @@ function fitBBox(customPath: string): { tx: number; ty: number; s: number } | nu
   try { bbox = tmp.getBBox(); } catch { svg.removeChild(tmp); return null; }
   svg.removeChild(tmp);
   if (!bbox.width || !bbox.height) return null;
-  const s = Math.min((WIDTH * 0.8) / bbox.width, (HEIGHT * 0.8) / bbox.height);
-  const tx = WIDTH / 2 - (bbox.x + bbox.width / 2) * s;
-  const ty = HEIGHT / 2 - (bbox.y + bbox.height / 2) * s;
+  const s = Math.min((view.w * 0.8) / bbox.width, (view.h * 0.8) / bbox.height);
+  const tx = view.w / 2 - (bbox.x + bbox.width / 2) * s;
+  const ty = view.h / 2 - (bbox.y + bbox.height / 2) * s;
   return { tx, ty, s };
 }
 
@@ -66,7 +78,7 @@ function fitTransform(customPath: string): string {
 /** Info de forma para el render a canvas (export de vídeo/GIF). */
 function currentShape(): FrameShape | undefined {
   if (mode !== 'forma') return undefined;
-  const { d, fillRule } = shapePath(params.forma, params.formaPath);
+  const { d, fillRule } = shapePath(params.forma, params.formaPath, view);
   const fit = params.forma === 'custom' && params.formaPath ? fitBBox(params.formaPath) : null;
   return { d, fillRule, fit };
 }
@@ -94,7 +106,7 @@ function render(): void {
     return;
   }
 
-  const { main, moire } = engine.generate(params, animTime);
+  const { main, moire } = engine.generate(params, animTime, view);
 
   if (mode === 'patron') {
     let inner = '';
@@ -103,7 +115,7 @@ function render(): void {
     svg.innerHTML = inner;
   } else {
     // FORMA: patrón recortado dentro del contenedor.
-    const { d, fillRule } = shapePath(params.forma, params.formaPath);
+    const { d, fillRule } = shapePath(params.forma, params.formaPath, view);
     const transform = params.forma === 'custom' && params.formaPath ? fitTransform(params.formaPath) : '';
     const clip = `<defs><clipPath id="caz-clip" clip-rule="${fillRule}">` +
       `<path d="${d}" clip-rule="${fillRule}"${transform ? ` transform="${transform}"` : ''}/></clipPath></defs>`;
@@ -153,6 +165,7 @@ const SLIDER_META: Record<string, { name: string; desc: string }> = {
   retratoRelieve: { name: 'RELIEVE', desc: 'Las líneas se abomban con el volumen' },
   retratoExposicion: { name: 'EXPOSICIÓN', desc: 'Brillo global de la foto' },
   retratoContraste: { name: 'CONTRASTE', desc: 'Refuerza la lectura de grabado' },
+  retratoZoom: { name: 'ENCUADRE', desc: 'Escala de la foto — arrastra el lienzo para recolocarla' },
 };
 
 function slider(key: keyof TornoParams): HTMLElement {
@@ -195,6 +208,27 @@ function refreshJSON(): void {
 
 function buildPanel(): void {
   panel.innerHTML = '';
+
+  // LIENZO (tamaño)
+  const lienzoWrap = el('div', 'seg');
+  const lienzos: [LienzoKind, string][] = [
+    ['1080x1080', '1:1 · 1080'],
+    ['1920x1080', '16:9 · 1920'],
+    ['1080x1920', '9:16 · 1080'],
+    ['1080x1440', '3:4 · 1080'],
+  ];
+  lienzos.forEach(([k, label]) => {
+    const b = el('button', params.lienzo === k ? 'active' : '', label) as HTMLButtonElement;
+    b.addEventListener('click', () => {
+      params.lienzo = k;
+      lienzoWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+      applyCanvasSize();
+      refreshJSON(); render();
+    });
+    lienzoWrap.appendChild(b);
+  });
+  panel.appendChild(group('Lienzo', [lienzoWrap]));
 
   // PRESETS
   const presetWrap = el('div', 'presets');
@@ -325,9 +359,10 @@ function buildPanel(): void {
     });
     panel.appendChild(group('Retrato (foto → grabado)', [
       trazoWrap,
+      slider('retratoZoom'),
       slider('retratoRelieve'), slider('retratoExposicion'), slider('retratoContraste'),
       cruzToggle, invToggle, loadBtn,
-      el('div', 'hint-inline', 'Arrastra una foto al lienzo. CAUDAL fija la densidad de líneas, CALADO el grosor, MAREA la onda y CORRIENTE la deriva del campo.'),
+      el('div', 'hint-inline', 'Arrastra una foto al lienzo. Con la foto cargada, arrastra sobre el lienzo para encuadrarla (ENCUADRE la escala). CAUDAL fija la densidad, CALADO el grosor, MAREA la onda y CORRIENTE la deriva.'),
     ]));
   }
 
@@ -384,7 +419,7 @@ async function runMotionExport(kind: 'webm' | 'gif', btn: HTMLButtonElement, don
   } else {
     const shape = currentShape();
     src = {
-      draw: (ctx, W, H, phase) => drawPatternFrame(ctx, W, H, params, engine, phase, shape),
+      draw: (ctx, W, H, phase) => drawPatternFrame(ctx, W, H, params, engine, phase, view, shape),
       ...inkPaper(params.colorway),
     };
   }
@@ -404,9 +439,11 @@ async function runMotionExport(kind: 'webm' | 'gif', btn: HTMLButtonElement, don
 function applyPreset(nombre: string): void {
   const pr = PRESETS.find((x) => x.nombre === nombre);
   if (!pr) return;
-  params = { ...DEFAULTS, ...pr.params };
+  // El lienzo es un ajuste de espacio de trabajo: los presets no lo tocan.
+  params = { ...DEFAULTS, ...pr.params, lienzo: params.lienzo };
   setMode(pr.mode, false);
   engine = new FlowEngine(params.semilla);
+  applyCanvasSize();
   buildPanel(); syncAnim(); render();
 }
 
@@ -418,6 +455,7 @@ function applyJSON(text: string): void {
   params = next;
   engine = new FlowEngine(params.semilla);
   if (m === 'patron' || m === 'retrato' || m === 'forma') setMode(m, false);
+  applyCanvasSize();
   buildPanel(); syncAnim(); render();
 }
 
@@ -434,7 +472,18 @@ document.querySelectorAll('#modes button').forEach((b) => {
   b.addEventListener('click', () => setMode((b as HTMLElement).dataset.mode as Mode));
 });
 document.getElementById('btn-svg')!.addEventListener('click', () => exportSVG(svg, params, mode));
-document.getElementById('btn-png')!.addEventListener('click', () => exportPNG(mode, params, svg, canvas));
+document.getElementById('btn-png')!.addEventListener('click', () => {
+  const drawRetrato = portraitImg
+    ? (ctx: CanvasRenderingContext2D, W: number, H: number) => renderPortraitTo(ctx, W, H, portraitImg!, params, animTime)
+    : undefined;
+  exportPNG(mode, params, svg, exportScale, drawRetrato);
+});
+document.querySelectorAll('#png-scale button').forEach((b) => {
+  b.addEventListener('click', () => {
+    exportScale = Number((b as HTMLElement).dataset.scale) || 2;
+    document.querySelectorAll('#png-scale button').forEach((x) => x.classList.toggle('active', x === b));
+  });
+});
 document.getElementById('btn-file')!.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', () => {
@@ -457,6 +506,38 @@ function loadImageFile(file: File): void {
   reader.readAsDataURL(file);
 }
 
+// ---------------- encuadre por arrastre (RETRATO) ----------------
+let panActive = false;
+let panStart = { x: 0, y: 0, offX: 0, offY: 0 };
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (mode !== 'retrato' || !portraitImg) return;
+  panActive = true;
+  panStart = { x: e.clientX, y: e.clientY, offX: params.retratoOffX, offY: params.retratoOffY };
+  canvas.setPointerCapture(e.pointerId);
+  canvas.style.cursor = 'grabbing';
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!panActive || !portraitImg) return;
+  const CW = canvas.width;
+  const CH = canvas.height;
+  const { drawW, drawH } = portraitLayout(portraitImg, params, CW, CH);
+  // px de pantalla → px lógicos del canvas → fracción de media imagen
+  const kx = CW / canvas.clientWidth;
+  const ky = CH / canvas.clientHeight;
+  params.retratoOffX = Math.max(-1.5, Math.min(1.5, panStart.offX + ((e.clientX - panStart.x) * kx) / (drawW * 0.5)));
+  params.retratoOffY = Math.max(-1.5, Math.min(1.5, panStart.offY + ((e.clientY - panStart.y) * ky) / (drawH * 0.5)));
+  refreshJSON();
+  scheduleRender();
+});
+const endPan = (): void => {
+  if (!panActive) return;
+  panActive = false;
+  canvas.style.cursor = 'grab';
+};
+canvas.addEventListener('pointerup', endPan);
+canvas.addEventListener('pointercancel', endPan);
+
 // drag & drop sobre el escenario
 const stage = document.getElementById('stage')!;
 ['dragenter', 'dragover'].forEach((ev) =>
@@ -469,5 +550,7 @@ stage.addEventListener('drop', (e) => {
 });
 
 // ---------------- arranque ----------------
+applyCanvasSize();
+canvas.style.cursor = 'grab';
 buildPanel();
 render();

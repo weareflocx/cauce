@@ -1,5 +1,5 @@
-import { FlowEngine, WIDTH, HEIGHT, type Line } from './field';
-import { inkPaper, type TornoParams } from './params';
+import { FlowEngine, type Line } from './field';
+import { inkPaper, type TornoParams, type View } from './params';
 
 export interface FrameShape {
   d: string;
@@ -21,28 +21,30 @@ function strokeLines(ctx: CanvasRenderingContext2D, lines: Line[]): void {
 
 /**
  * Dibuja un fotograma del patrón (PATRÓN o FORMA) en un canvas 2D.
- * Se usa para el export de vídeo/GIF de CORRIENTE VIVA. `phase` ∈ [0,1).
+ * `view` son las dimensiones lógicas del lienzo; `outW/outH` las del canvas
+ * de salida (misma proporción, cualquier escala). `phase` ∈ [0,1).
  */
 export function drawPatternFrame(
   ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
+  outW: number,
+  outH: number,
   params: TornoParams,
   engine: FlowEngine,
   phase: number,
+  view: View,
   shape?: FrameShape,
 ): void {
   const { ink, paper } = inkPaper(params.colorway);
-  const sx = W / WIDTH;
-  const sy = H / HEIGHT;
+  const sx = outW / view.w;
+  const sy = outH / view.h;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.fillStyle = paper;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, outW, outH);
 
   ctx.save();
-  ctx.scale(sx, sy); // trabajar en coordenadas de viewBox (1200×900)
+  ctx.scale(sx, sy); // trabajar en coordenadas lógicas del lienzo
 
   if (shape) {
     let path: Path2D;
@@ -57,7 +59,7 @@ export function drawPatternFrame(
     ctx.clip(path, shape.fillRule);
   }
 
-  const { main, moire } = engine.generate(params, phase);
+  const { main, moire } = engine.generate(params, phase, view);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.strokeStyle = ink;

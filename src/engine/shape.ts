@@ -1,8 +1,4 @@
-import { WIDTH, HEIGHT } from './field';
-import type { ShapeKind } from './params';
-
-const CX = WIDTH / 2;
-const CY = HEIGHT / 2;
+import type { ShapeKind, View } from './params';
 
 /** Path de un círculo (dos arcos). */
 function circlePath(cx: number, cy: number, r: number, sweep = 1): string {
@@ -33,13 +29,15 @@ function stadiumPath(cx: number, cy: number, w: number, h: number): string {
  * Devuelve el atributo `d` del contenedor de FORMA. La "O de cauce" es un
  * anillo (letterform), no un mandala: el patrón lo rellena manteniendo dirección.
  */
-export function shapePath(kind: ShapeKind, customPath: string): { d: string; fillRule: 'nonzero' | 'evenodd' } {
-  const R = Math.min(WIDTH, HEIGHT) * 0.42;
+export function shapePath(kind: ShapeKind, customPath: string, view: View): { d: string; fillRule: 'nonzero' | 'evenodd' } {
+  const CX = view.w / 2;
+  const CY = view.h / 2;
+  const R = Math.min(view.w, view.h) * 0.42;
   switch (kind) {
     case 'circulo':
       return { d: circlePath(CX, CY, R), fillRule: 'nonzero' };
     case 'pildora':
-      return { d: stadiumPath(CX, CY, WIDTH * 0.72, HEIGHT * 0.44), fillRule: 'nonzero' };
+      return { d: stadiumPath(CX, CY, view.w * 0.72, view.h * 0.44), fillRule: 'nonzero' };
     case 'o-cauce':
       // Anillo: círculo exterior + interior, relleno evenodd.
       return { d: circlePath(CX, CY, R, 1) + circlePath(CX, CY, R * 0.52, 0), fillRule: 'evenodd' };

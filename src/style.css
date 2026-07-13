@@ -90,9 +90,23 @@ main { display: flex; flex: 1 1 auto; min-height: 0; }
   height: auto;
   background: var(--papel);
   box-shadow: 0 1px 0 rgba(16,16,18,0.15), 0 18px 40px rgba(16,16,18,0.12);
-  aspect-ratio: 4 / 3;
+  /* aspect-ratio se fija inline según el LIENZO elegido */
 }
-#lienzo-canvas { display: none; }
+#lienzo-canvas { display: none; touch-action: none; }
+
+#png-scale { display: flex; }
+#png-scale button {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 7px 9px;
+  border: 1px solid var(--tinta);
+  border-left: none;
+  background: var(--papel);
+  color: var(--tinta);
+  cursor: pointer;
+}
+#png-scale button:first-child { border-left: 1px solid var(--tinta); }
+#png-scale button.active { background: var(--tinta); color: var(--papel); }
 
 #drop-hint {
   position: absolute;

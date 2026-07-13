@@ -117,6 +117,25 @@ export function portraitInk(p: TornoParams): { ink: string; paper: string } {
 }
 
 /**
+ * Encuadre de la foto en el lienzo: contain × ZOOM, desplazado por los offsets
+ * (fracción de media imagen). Compartido con la interacción de arrastre.
+ */
+export function portraitLayout(
+  img: HTMLImageElement, p: TornoParams, CW: number, CH: number,
+): { pad: number; drawW: number; drawH: number; ox: number; oy: number } {
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const orillasBand = (p.orillas / 100) * Math.min(CW, CH);
+  const pad = Math.max(orillasBand, CW * 0.02);
+  const s = Math.min((CW - 2 * pad) / iw, (CH - 2 * pad) / ih) * p.retratoZoom;
+  const drawW = iw * s;
+  const drawH = ih * s;
+  const ox = (CW - drawW) / 2 + p.retratoOffX * drawW * 0.5;
+  const oy = (CH - drawH) / 2 + p.retratoOffY * drawH * 0.5;
+  return { pad, drawW, drawH, ox, oy };
+}
+
+/**
  * Dibuja el grabado en cualquier contexto/tamaño. `phase` ∈ [0,1) es la fase
  * del bucle de CORRIENTE VIVA (sin costura: la onda viaja una longitud de onda
  * entera y la deriva del campo traza un círculo en el espacio de ruido).
@@ -139,15 +158,12 @@ export function renderPortraitTo(
   const grid = getGrid(img);
   if (!grid) return;
 
-  const iw = img.naturalWidth || img.width;
-  const ih = img.naturalHeight || img.height;
   const orillasBand = (p.orillas / 100) * Math.min(CW, CH);
-  const pad = Math.max(orillasBand, CW * 0.02);
-  const scale = Math.min((CW - 2 * pad) / iw, (CH - 2 * pad) / ih);
-  const drawW = iw * scale;
-  const drawH = ih * scale;
-  const ox = (CW - drawW) / 2;
-  const oy = (CH - drawH) / 2;
+  const { pad, drawW, drawH, ox, oy } = portraitLayout(img, p, CW, CH);
+  // Área de barrido: el lienzo menos el margen — la imagen puede desbordarla
+  // (recorte) o no llenarla (aire); las líneas sólo entintan donde hay foto.
+  const areaX0 = pad, areaX1 = CW - pad;
+  const areaY0 = pad, areaY1 = CH - pad;
 
   // --- tono ---
   const exposure = (p.retratoExposicion / 100) * 0.6;
@@ -162,7 +178,7 @@ export function renderPortraitTo(
 
   // --- geometría de trama ---
   const nLines = Math.round(Math.min(400, Math.max(20, p.caudal)));
-  const spacing = drawH / nLines;
+  const spacing = (areaY1 - areaY0) / nLines; // la trama es del lienzo, la foto se encuadra dentro
   const caladoK = p.calado / 1.4; // 1.0 en el default
   const lambda = Math.max(4, spacing * 2.6); // longitud de onda fija (AM, no FM)
   const k = (2 * Math.PI) / lambda;
@@ -199,7 +215,7 @@ export function renderPortraitTo(
 
   // ---------- trama principal (horizontal) ----------
   for (let li = 0; li < nLines; li++) {
-    const y0 = oy + spacing * (li + 0.5);
+    const y0 = areaY0 + spacing * (li + 0.5);
     let top: Array<[number, number]> = [];
     let bot: Array<[number, number]> = [];
 
@@ -216,7 +232,7 @@ export function renderPortraitTo(
       bot = [];
     };
 
-    for (let x = ox; x <= ox + drawW; x += stepX) {
+    for (let x = areaX0; x <= areaX1; x += stepX) {
       // coords normalizadas (independientes de la resolución de salida)
       const xN = (x / CW) * 1200;
       const yN = (y0 / CH) * 900;
@@ -224,7 +240,9 @@ export function renderPortraitTo(
       // relieve: warp vertical por luminancia difuminada — sigue el volumen
       const uB = (x - ox) / drawW;
       const vB = (y0 - oy) / drawH;
-      const blurL = sampleBilinear(grid.blur, grid.sw, grid.sh, uB, vB);
+      const blurL = uB >= 0 && uB <= 1 && vB >= 0 && vB <= 1
+        ? sampleBilinear(grid.blur, grid.sw, grid.sh, uB, vB)
+        : 0.5; // fuera de la foto: sin relieve
       const relief = (blurL - 0.5) * -reliefAmt; // claro = arriba, oscuro = abajo
 
       // deriva del campo (corriente)
@@ -260,10 +278,10 @@ export function renderPortraitTo(
 
   // ---------- trama cruzada (vertical, sólo sombras profundas) ----------
   if (p.retratoCruzada) {
-    const nCols = Math.round(drawW / spacing);
+    const nCols = Math.round((areaX1 - areaX0) / spacing);
     const stepY = Math.max(CH / 1400, spacing / 4);
     for (let ci = 0; ci < nCols; ci++) {
-      const x0 = ox + spacing * (ci + 0.5);
+      const x0 = areaX0 + spacing * (ci + 0.5);
       let left: Array<[number, number]> = [];
       let right: Array<[number, number]> = [];
       const flush = (): void => {
@@ -279,7 +297,7 @@ export function renderPortraitTo(
         right = [];
       };
 
-      for (let y = oy; y <= oy + drawH; y += stepY) {
+      for (let y = areaY0; y <= areaY1; y += stepY) {
         const xN = (x0 / CW) * 1200;
         const yN = (y / CH) * 900;
         const drift = driftAmp > 0.001

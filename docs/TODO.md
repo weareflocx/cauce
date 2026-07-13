@@ -20,6 +20,10 @@ Documentado, no construido (spec §7). Candidatos para v1+:
   TRAZO onda/zigzag/recta, RELIEVE (warp de contorno por luminancia difuminada),
   TRAMA CRUZADA en sombras, dropout en luces, animación con fase sin costura.
 - Renombrado TORNO → **CAZ**.
+- **Lienzo seleccionable** (1:1, 16:9, 9:16, 3:4) con el motor consciente del
+  tamaño; PNG a ×1/×2/×4 del lienzo.
+- **Encuadre en RETRATO**: ENCUADRE (zoom 1–4×) + arrastre sobre el lienzo para
+  recortar/recolocar la foto.
 
 ## Notas de implementación pendientes
 

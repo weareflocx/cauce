@@ -22,6 +22,7 @@ export interface TornoParams {
   // --- presentación ---
   colorway: Colorway;
   vivo: boolean;      // CORRIENTE VIVA — animación (el campo se desplaza)
+  lienzo: LienzoKind; // tamaño del lienzo (px lógicos)
 
   // --- modo FORMA ---
   forma: ShapeKind;
@@ -34,9 +35,21 @@ export interface TornoParams {
   retratoExposicion: number; // -100..100, brillo global de la foto
   retratoContraste: number;  // 0–100, refuerza la lectura de grabado
   retratoInvert: boolean;    // invierte oscuro/claro
+  retratoZoom: number;       // 1–4, escala de la foto (recorte/encuadre)
+  retratoOffX: number;       // -1..1, desplazamiento horizontal del encuadre
+  retratoOffY: number;       // -1..1, desplazamiento vertical del encuadre
 }
 
 export type TrazoKind = 'onda' | 'zigzag' | 'recta';
+
+export type LienzoKind = '1080x1080' | '1920x1080' | '1080x1920' | '1080x1440';
+
+export interface View { w: number; h: number }
+
+export function lienzoDims(l: LienzoKind): View {
+  const [w, h] = l.split('x').map(Number);
+  return { w, h };
+}
 
 export type ShapeKind = 'circulo' | 'pildora' | 'o-cauce' | 'custom';
 
@@ -54,12 +67,16 @@ export const DEFAULTS: TornoParams = {
   vivo: false,
   forma: 'o-cauce',
   formaPath: '',
+  lienzo: '1080x1080',
   retratoTrazo: 'onda',
   retratoRelieve: 40,
   retratoCruzada: false,
   retratoExposicion: 0,
   retratoContraste: 50,
   retratoInvert: false,
+  retratoZoom: 1,
+  retratoOffX: 0,
+  retratoOffY: 0,
 };
 
 /** Los 5 presets de fábrica (spec §5). El modo va aparte en cada receta. */
@@ -118,6 +135,7 @@ export const RANGES: Record<string, Range> = {
   retratoRelieve:    { min: 0,    max: 100, step: 1, unit: '' },
   retratoExposicion: { min: -100, max: 100, step: 1, unit: '' },
   retratoContraste:  { min: 0,   max: 100, step: 1, unit: '' },
+  retratoZoom:       { min: 1,   max: 4,   step: 0.05, unit: '×' },
 };
 
 /** Colores de tinta/fondo según colorway. */
@@ -152,11 +170,15 @@ export function coerceParams(input: unknown): TornoParams {
   num('retratoRelieve', RANGES.retratoRelieve);
   num('retratoExposicion', RANGES.retratoExposicion);
   num('retratoContraste', RANGES.retratoContraste);
+  num('retratoZoom', RANGES.retratoZoom);
+  num('retratoOffX', { min: -1.5, max: 1.5, step: 0.01 });
+  num('retratoOffY', { min: -1.5, max: 1.5, step: 0.01 });
   if (typeof o.semilla === 'number' && Number.isFinite(o.semilla)) p.semilla = Math.floor(o.semilla) >>> 0;
   if (o.colorway === 'tinta/papel' || o.colorway === 'agua/papel' || o.colorway === 'papel/agua') p.colorway = o.colorway;
   if (o.forma === 'circulo' || o.forma === 'pildora' || o.forma === 'o-cauce' || o.forma === 'custom') p.forma = o.forma;
   if (typeof o.formaPath === 'string') p.formaPath = o.formaPath;
   if (typeof o.vivo === 'boolean') p.vivo = o.vivo;
+  if (o.lienzo === '1080x1080' || o.lienzo === '1920x1080' || o.lienzo === '1080x1920' || o.lienzo === '1080x1440') p.lienzo = o.lienzo;
   if (o.retratoTrazo === 'onda' || o.retratoTrazo === 'zigzag' || o.retratoTrazo === 'recta') p.retratoTrazo = o.retratoTrazo;
   if (typeof o.retratoCruzada === 'boolean') p.retratoCruzada = o.retratoCruzada;
   if (typeof o.retratoInvert === 'boolean') p.retratoInvert = o.retratoInvert;

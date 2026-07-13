@@ -28,8 +28,9 @@ Abre `http://localhost:5173`.
   en la anchura de línea a espaciado constante (halftoning AM, como el grabado de
   billete): las líneas nunca se funden. Controles: TRAZO (onda / zigzag / recta),
   RELIEVE (las líneas se abomban siguiendo el volumen de la imagen), TRAMA CRUZADA
-  (2ª trama en sombras profundas), EXPOSICIÓN y CONTRASTE. CORRIENTE VIVA también
-  anima el grabado y permite exportarlo a WebM/GIF.
+  (2ª trama en sombras profundas), EXPOSICIÓN y CONTRASTE. ENCUADRE escala la foto
+  y arrastrando el lienzo la recolocas (recorte). CORRIENTE VIVA también anima el
+  grabado y permite exportarlo a WebM/GIF.
 - **FORMA** — el patrón recortado dentro de un contenedor (círculo, píldora, «O de
   cauce» o un `path` SVG pegado por ti). Para iconos, sellos y assets de sistema.
 
@@ -53,10 +54,16 @@ Misma semilla + mismos parámetros = misma pieza, siempre (PRNG `splitmix32` +
 simplex sembrado). Copia la **receta JSON** del panel para versionar recetas en el
 brandbook; pégala y pulsa APLICAR para reconstruir la pieza exacta.
 
+## Lienzo
+
+Cuatro formatos: **1080×1080**, **1920×1080**, **1080×1920** y **1080×1440**.
+El formato va en la receta JSON; los presets no lo tocan.
+
 ## Export
 
 - **SVG** vectorial limpio (paths, sin imagen embebida) — PATRÓN y FORMA.
-- **PNG @2x** — los tres modos.
+- **PNG** al tamaño del lienzo elegido, a **×1, ×2 o ×4** — los tres modos
+  (hasta 7680 px de lado en 16:9 ×4).
 - **Receta JSON** — todos los parámetros + semilla + modo.
 - **Vídeo WebM y GIF** — con CORRIENTE VIVA activa, en los **tres modos** (también
   RETRATO). El bucle es **sin costura**: el campo traza un círculo en el espacio de

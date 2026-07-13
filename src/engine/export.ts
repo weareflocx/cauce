@@ -1,5 +1,4 @@
-import { WIDTH, HEIGHT } from './field';
-import { inkPaper, type Mode, type TornoParams } from './params';
+import { inkPaper, lienzoDims, type Mode, type TornoParams } from './params';
 import { encodeGIF, duotoneRamp, type GifFrame } from './gif';
 
 function download(blob: Blob, filename: string): void {
@@ -20,18 +19,19 @@ function stamp(): string {
 
 /** Devuelve el SVG standalone limpio (paths, no imagen embebida). */
 export function svgString(svgEl: SVGSVGElement, p: TornoParams): string {
+  const view = lienzoDims(p.lienzo);
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  clone.setAttribute('width', String(WIDTH));
-  clone.setAttribute('height', String(HEIGHT));
-  clone.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`);
+  clone.setAttribute('width', String(view.w));
+  clone.setAttribute('height', String(view.h));
+  clone.setAttribute('viewBox', `0 0 ${view.w} ${view.h}`);
   // Fondo papel como primer rect (para que el SVG no sea transparente).
   const { paper } = inkPaper(p.colorway);
   const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   bg.setAttribute('x', '0');
   bg.setAttribute('y', '0');
-  bg.setAttribute('width', String(WIDTH));
-  bg.setAttribute('height', String(HEIGHT));
+  bg.setAttribute('width', String(view.w));
+  bg.setAttribute('height', String(view.h));
   bg.setAttribute('fill', paper);
   clone.insertBefore(bg, clone.firstChild);
   const head = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -43,42 +43,48 @@ export function exportSVG(svgEl: SVGSVGElement, p: TornoParams, mode: Mode): voi
   download(new Blob([str], { type: 'image/svg+xml;charset=utf-8' }), `caz-${mode}-${p.semilla}-${stamp()}.svg`);
 }
 
-/** PNG @2x. Para patrón/forma rasteriza el SVG; para retrato usa el canvas. */
+/**
+ * PNG al tamaño del lienzo × escala (1, 2 o 4). Para patrón/forma rasteriza el
+ * SVG; para retrato re-dibuja al tamaño exacto con `drawRetrato`.
+ */
 export async function exportPNG(
   mode: Mode,
   p: TornoParams,
   svgEl: SVGSVGElement,
-  canvasEl: HTMLCanvasElement,
+  scale: number,
+  drawRetrato?: (ctx: CanvasRenderingContext2D, W: number, H: number) => void,
 ): Promise<void> {
-  const W2 = WIDTH * 2;
-  const H2 = HEIGHT * 2;
+  const view = lienzoDims(p.lienzo);
+  const W = view.w * scale;
+  const H = view.h * scale;
+  const name = `caz-${mode}-${p.semilla}-${view.w}x${view.h}@${scale}x-${stamp()}.png`;
+
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d')!;
 
   if (mode === 'retrato') {
-    canvasEl.toBlob((blob) => {
-      if (blob) download(blob, `caz-retrato-${p.semilla}-${stamp()}.png`);
-    }, 'image/png');
-    return;
+    if (!drawRetrato) return;
+    drawRetrato(ctx, W, H);
+  } else {
+    const str = svgString(svgEl, p);
+    const svgBlob = new Blob([str], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    try {
+      const img = await loadImage(url);
+      ctx.drawImage(img, 0, 0, W, H);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 
-  const str = svgString(svgEl, p);
-  const svgBlob = new Blob([str], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-  try {
-    const img = await loadImage(url);
-    const c = document.createElement('canvas');
-    c.width = W2;
-    c.height = H2;
-    const ctx = c.getContext('2d')!;
-    ctx.drawImage(img, 0, 0, W2, H2);
-    await new Promise<void>((resolve) => {
-      c.toBlob((blob) => {
-        if (blob) download(blob, `caz-${mode}-${p.semilla}-${stamp()}.png`);
-        resolve();
-      }, 'image/png');
-    });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  await new Promise<void>((resolve) => {
+    c.toBlob((blob) => {
+      if (blob) download(blob, name);
+      resolve();
+    }, 'image/png');
+  });
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -131,8 +137,9 @@ export function webmSupported(): boolean {
 export async function exportWebM(
   p: TornoParams, mode: Mode, src: MotionSource, opts: MotionOpts = {},
 ): Promise<void> {
-  const W = opts.ancho ?? WIDTH;
-  const H = Math.round((W * HEIGHT) / WIDTH);
+  const view = lienzoDims(p.lienzo);
+  const W = opts.ancho ?? view.w;
+  const H = Math.round((W * view.h) / view.w);
   const fps = opts.fps ?? 30;
   const durMs = (opts.segundos ?? 3) * 1000;
 
@@ -177,8 +184,9 @@ export async function exportWebM(
 export async function exportGIF(
   p: TornoParams, mode: Mode, src: MotionSource, opts: MotionOpts = {},
 ): Promise<void> {
-  const W = opts.ancho ?? 560;
-  const H = Math.round((W * HEIGHT) / WIDTH);
+  const view = lienzoDims(p.lienzo);
+  const W = opts.ancho ?? Math.min(560, view.w);
+  const H = Math.round((W * view.h) / view.w);
   const fps = opts.fps ?? 16;
   const nFrames = opts.frames ?? Math.round((opts.segundos ?? 2.5) * fps);
   const delayCs = Math.max(2, Math.round(100 / fps));

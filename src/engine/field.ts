@@ -1,13 +1,5 @@
 import { SimplexNoise } from './noise';
-import type { TornoParams } from './params';
-
-export const WIDTH = 1200;
-export const HEIGHT = 900;
-
-const CENTER_X = WIDTH / 2;
-const CENTER_Y = HEIGHT / 2;
-// Radio que cubre la diagonal para que la trama llene el lienzo tras rotar CURSO.
-export const R = 0.5 * Math.hypot(WIDTH, HEIGHT) * 1.06;
+import type { TornoParams, View } from './params';
 
 export interface Line {
   points: Array<[number, number]>;
@@ -27,6 +19,7 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
  *  - deflexión de canal (CAUCE): la banda entera mea­ndrea como un cauce.
  *  - campo de flujo simplex (MAREA amplitud, CORRIENTE frecuencia/turbulencia).
  *  - zona de calma en bordes (ORILLAS).
+ * Trabaja en las dimensiones lógicas del lienzo elegido (`view`).
  */
 export class FlowEngine {
   private flow: SimplexNoise;
@@ -38,9 +31,14 @@ export class FlowEngine {
   }
 
   /** Genera una familia de líneas rotada `rotDeg` grados extra (para moiré). */
-  private family(p: TornoParams, rotDeg: number, time: number): Line[] {
+  private family(p: TornoParams, rotDeg: number, time: number, W: number, H: number): Line[] {
     const lines: Line[] = [];
     const n = Math.max(2, Math.round(p.caudal));
+
+    const CX = W / 2;
+    const CY = H / 2;
+    // Radio que cubre la diagonal para que la trama llene el lienzo tras rotar CURSO.
+    const R = 0.5 * Math.hypot(W, H) * 1.06;
 
     const angle = ((p.curso + rotDeg) * Math.PI) / 180;
     const dx = Math.cos(angle);
@@ -58,7 +56,7 @@ export class FlowEngine {
     const ff = 0.0011 + (p.corriente / 100) * 0.0042;
     const octaves = p.corriente > 55 ? 3 : 2;
     // Zona de calma.
-    const band = (p.orillas / 100) * Math.min(WIDTH, HEIGHT);
+    const band = (p.orillas / 100) * Math.min(W, H);
 
     // Paso de muestreo: más fino con más marea/corriente.
     const du = Math.max(3.5, 7 - (p.corriente / 100) * 3);
@@ -79,13 +77,13 @@ export class FlowEngine {
         const deflect = this.channel.noise2D(u * chFreq, 7.3) * chAmp;
         const v0 = vBase + deflect;
 
-        const bx = CENTER_X + u * dx + v0 * nx;
-        const by = CENTER_Y + u * dy + v0 * ny;
+        const bx = CX + u * dx + v0 * nx;
+        const by = CY + u * dy + v0 * ny;
 
         // Taper de bordes (ORILLAS) en espacio de lienzo.
         let taper = 1;
         if (band > 0.001) {
-          const de = Math.min(bx, WIDTH - bx, by, HEIGHT - by);
+          const de = Math.min(bx, W - bx, by, H - by);
           taper = smoothstep(0, band, de);
         }
 
@@ -95,11 +93,11 @@ export class FlowEngine {
           taper;
         const v = v0 + flowMag;
 
-        const x = CENTER_X + u * dx + v * nx;
-        const y = CENTER_Y + u * dy + v * ny;
+        const x = CX + u * dx + v * nx;
+        const y = CY + u * dy + v * ny;
 
         // Recorte holgado: el viewBox/clip del SVG afina el borde.
-        if (x < -40 || x > WIDTH + 40 || y < -40 || y > HEIGHT + 40) {
+        if (x < -40 || x > W + 40 || y < -40 || y > H + 40) {
           if (pts.length > 1) { lines.push({ points: pts.slice() }); }
           pts.length = 0;
           continue;
@@ -112,9 +110,9 @@ export class FlowEngine {
   }
 
   /** Trama principal + (opcional) 2ª trama rotada DERIVA grados. */
-  generate(p: TornoParams, time = 0): { main: Line[]; moire: Line[] } {
-    const main = this.family(p, 0, time);
-    const moire = p.deriva > 0.01 ? this.family(p, p.deriva, time) : [];
+  generate(p: TornoParams, time: number, view: View): { main: Line[]; moire: Line[] } {
+    const main = this.family(p, 0, time, view.w, view.h);
+    const moire = p.deriva > 0.01 ? this.family(p, p.deriva, time, view.w, view.h) : [];
     return { main, moire };
   }
 }

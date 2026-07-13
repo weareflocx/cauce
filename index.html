@@ -17,7 +17,12 @@
         </nav>
         <div id="exports">
           <button id="btn-svg" title="Exportar SVG vectorial">SVG</button>
-          <button id="btn-png" title="Exportar PNG @2x">PNG 2×</button>
+          <button id="btn-png" title="Exportar PNG al tamaño del lienzo × escala">PNG</button>
+          <div id="png-scale" title="Escala del PNG exportado">
+            <button data-scale="1">1×</button>
+            <button data-scale="2" class="active">2×</button>
+            <button data-scale="4">4×</button>
+          </div>
         </div>
       </header>
       <main>

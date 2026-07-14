@@ -44,6 +44,8 @@ export interface TornoParams {
 
   // --- modo RETRATO ---
   retratoTrazo: TrazoKind;   // forma de la línea de grabado
+  retratoLongitud: number;   // 5–100, longitud de onda del trazo (corta ↔ larga)
+  retratoSesgo: number;      // -100..100, inclinación del diente del zigzag
   retratoCapas: number;      // 1–3 capas de trama: cruzadas progresivas en medios/sombras
   retratoContorno: number;   // 0–100, las líneas giran siguiendo los contornos (tangentes)
   retratoDetalle: number;    // 0–100, realce de detalle fino (claridad de grabado)
@@ -106,6 +108,8 @@ export const DEFAULTS: TornoParams = {
   motionLoop: true,
   lienzo: '1080x1080',
   retratoTrazo: 'onda',
+  retratoLongitud: 30,
+  retratoSesgo: 0,
   retratoCapas: 2,
   retratoContorno: 40,
   retratoDetalle: 35,
@@ -164,37 +168,37 @@ export const PRESETS: Preset[] = [
     nombre: 'Billete',
     descripcion: 'Grabado de banco: 3 capas, detalle alto, grano fino',
     mode: 'retrato',
-    params: { caudal: 300, calado: 1.1, marea: 24, corriente: 8, cauce: 25, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'onda', retratoCapas: 3, retratoContorno: 55, retratoDetalle: 55, retratoRelieve: 45, retratoContraste: 55, semilla: 2049 },
+    params: { caudal: 300, calado: 1.1, marea: 24, corriente: 8, cauce: 25, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'onda', retratoLongitud: 30, retratoCapas: 3, retratoContorno: 55, retratoDetalle: 55, retratoRelieve: 45, retratoContraste: 55, semilla: 2049 },
   },
   {
     nombre: 'Buril',
     descripcion: 'Rizos de buril que crecen en la sombra (pelo del billete)',
     mode: 'retrato',
-    params: { caudal: 210, calado: 1.2, marea: 48, corriente: 6, cauce: 15, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'bucle', retratoCapas: 2, retratoContorno: 45, retratoDetalle: 55, retratoRelieve: 40, retratoContraste: 52, semilla: 2049 },
+    params: { caudal: 210, calado: 1.2, marea: 48, corriente: 6, cauce: 15, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'bucle', retratoLongitud: 22, retratoCapas: 2, retratoContorno: 45, retratoDetalle: 55, retratoRelieve: 40, retratoContraste: 52, semilla: 2049 },
   },
   {
     nombre: 'Topográfico',
     descripcion: 'Línea recta con relieve fuerte — el volumen manda',
     mode: 'retrato',
-    params: { caudal: 190, calado: 1.6, marea: 18, corriente: 6, cauce: 0, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'recta', retratoCapas: 2, retratoContorno: 30, retratoDetalle: 40, retratoRelieve: 85, retratoContraste: 50, semilla: 2049 },
+    params: { caudal: 190, calado: 1.6, marea: 18, corriente: 6, cauce: 0, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'recta', retratoLongitud: 40, retratoCapas: 2, retratoContorno: 30, retratoDetalle: 40, retratoRelieve: 85, retratoContraste: 50, semilla: 2049 },
   },
   {
     nombre: 'Pasaporte',
     descripcion: 'Malla bicolor finísima: 2ª trama a 90° en agua',
     mode: 'retrato',
-    params: { caudal: 340, calado: 0.75, marea: 16, corriente: 10, cauce: 20, deriva: 90, colorDeriva: '#177E70', curso: 0, orillas: 4, retratoTrazo: 'onda', retratoCapas: 2, retratoContorno: 40, retratoDetalle: 45, retratoRelieve: 30, retratoContraste: 45, semilla: 2049 },
+    params: { caudal: 340, calado: 0.75, marea: 16, corriente: 10, cauce: 20, deriva: 90, colorDeriva: '#177E70', curso: 0, orillas: 4, retratoTrazo: 'onda', retratoLongitud: 25, retratoCapas: 2, retratoContorno: 40, retratoDetalle: 45, retratoRelieve: 30, retratoContraste: 45, semilla: 2049 },
   },
   {
     nombre: 'Filatelia',
     descripcion: 'Sello postal: denso, contrastado, contorno marcado',
     mode: 'retrato',
-    params: { caudal: 150, calado: 2, marea: 28, corriente: 8, cauce: 0, deriva: 0, curso: 0, orillas: 6, retratoTrazo: 'onda', retratoCapas: 3, retratoContorno: 50, retratoDetalle: 70, retratoRelieve: 50, retratoContraste: 62, semilla: 2049 },
+    params: { caudal: 150, calado: 2, marea: 28, corriente: 8, cauce: 0, deriva: 0, curso: 0, orillas: 6, retratoTrazo: 'onda', retratoLongitud: 28, retratoCapas: 3, retratoContorno: 50, retratoDetalle: 70, retratoRelieve: 50, retratoContraste: 62, semilla: 2049 },
   },
   {
     nombre: 'Fluvial',
     descripcion: 'La corriente lleva el retrato — contorno y marea altos',
     mode: 'retrato',
-    params: { caudal: 170, calado: 1.3, marea: 62, corriente: 40, cauce: 60, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'onda', retratoCapas: 1, retratoContorno: 70, retratoDetalle: 45, retratoRelieve: 35, retratoContraste: 50, semilla: 2049 },
+    params: { caudal: 170, calado: 1.3, marea: 62, corriente: 40, cauce: 60, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'onda', retratoLongitud: 60, retratoCapas: 1, retratoContorno: 70, retratoDetalle: 45, retratoRelieve: 35, retratoContraste: 50, semilla: 2049 },
   },
 
   // --- SÍMBOLO ---
@@ -243,6 +247,8 @@ export const RANGES: Record<string, Range> = {
   orillas:   { min: 0,    max: 20,  step: 0.5,  unit: '%' },
   deriva:    { min: 0,    max: 360, step: 1,    unit: '°' },
   torsion:   { min: 0,    max: 100, step: 1,    unit: '' },
+  retratoLongitud:   { min: 5,    max: 100, step: 1, unit: '' },
+  retratoSesgo:      { min: -100, max: 100, step: 1, unit: '' },
   retratoContorno:   { min: 0,    max: 100, step: 1, unit: '' },
   retratoDetalle:    { min: 0,    max: 100, step: 1, unit: '' },
   retratoRelieve:    { min: 0,    max: 100, step: 1, unit: '' },
@@ -298,6 +304,8 @@ export function coerceParams(input: unknown): TornoParams {
   num('orillas', RANGES.orillas);
   num('deriva', RANGES.deriva);
   num('torsion', RANGES.torsion);
+  num('retratoLongitud', RANGES.retratoLongitud);
+  num('retratoSesgo', RANGES.retratoSesgo);
   num('retratoContorno', RANGES.retratoContorno);
   num('retratoRelieve', RANGES.retratoRelieve);
   num('retratoExposicion', RANGES.retratoExposicion);

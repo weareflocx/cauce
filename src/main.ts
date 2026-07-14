@@ -245,6 +245,8 @@ const SLIDER_META: Record<string, { name: string; desc: string }> = {
   orillas: { name: 'ORILLAS', desc: 'Zona de calma en los bordes' },
   deriva: { name: 'DERIVA', desc: 'Rotación de la 2ª trama, 0–360° (0 = sin moiré)' },
   torsion: { name: 'TORSIÓN', desc: 'Cizalla de fase entre líneas — la trama gira en 3D' },
+  retratoLongitud: { name: 'LONGITUD', desc: 'Longitud de onda del trazo — corta y nerviosa ↔ larga y serena' },
+  retratoSesgo: { name: 'INCLINACIÓN', desc: 'Asimetría del diente del zigzag (0 = simétrico)' },
   retratoContorno: { name: 'CONTORNO', desc: 'Las líneas giran siguiendo los contornos de la imagen' },
   retratoDetalle: { name: 'DETALLE', desc: 'Realce del detalle fino — claridad de grabado' },
   retratoRelieve: { name: 'RELIEVE', desc: 'Las líneas se abomban con el volumen' },
@@ -632,6 +634,7 @@ function buildPanel(): void {
     });
     panel.appendChild(group('Retrato (foto → grabado)', [
       trazoWrap,
+      slider('retratoLongitud'), slider('retratoSesgo'),
       capasCtrl,
       fitCtrl,
       slider('retratoZoom'),

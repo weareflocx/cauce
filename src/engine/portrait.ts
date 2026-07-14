@@ -184,7 +184,8 @@ export function renderPortraitTo(
   const nLines = Math.round(Math.min(400, Math.max(20, p.caudal)));
   const spacing = (areaY1 - areaY0) / nLines; // la trama es del lienzo, la foto se encuadra dentro
   const caladoK = p.calado / 1.4; // 1.0 en el default
-  const lambda = Math.max(4, spacing * 2.6); // longitud de onda fija (AM, no FM)
+  // LONGITUD: onda corta y nerviosa ↔ larga y serena (5–100 → 1.5–7.2 pasos)
+  const lambda = Math.max(4, spacing * (1.2 + (p.retratoLongitud / 100) * 6));
   const k = (2 * Math.PI) / lambda;
   const wavePhase = 2 * Math.PI * phase; // la onda viaja: bucle sin costura
   const maxAmp = spacing * 0.9 * (p.marea / 100);
@@ -213,7 +214,8 @@ export function renderPortraitTo(
 
   // --- campo de flujo: deriva circular (loop perfecto) o libre ---
   const flow = new SimplexNoise(p.semilla);
-  const driftAmp = spacing * 2.2 * (p.corriente / 100);
+  // RECTA = geometría pura: el raíl apenas se contamina de ruido
+  const driftAmp = spacing * 2.2 * (p.corriente / 100) * (p.retratoTrazo === 'recta' ? 0.25 : 1);
   let tx: number, ty: number;
   if (p.motionLoop) {
     tx = Math.cos(2 * Math.PI * phase) * 0.34;
@@ -227,12 +229,20 @@ export function renderPortraitTo(
    * Forma de onda como vector [a lo largo, perpendicular] — BUCLE necesita
    * las dos componentes: es una trocoide que riza sobre sí misma cuando la
    * amplitud (el tono) supera el avance, como el rizo de buril del grabador
-   * (pelo y sombras del billete).
+   * (pelo y sombras del billete). `kk` es la frecuencia local: cada capa
+   * puede ondular a su propia longitud (profundidades distintas).
    */
-  const waveVec = (s: number, amp: number): [number, number] => {
-    const t = k * s + wavePhase;
+  const sesgo = Math.max(-1, Math.min(1, p.retratoSesgo / 100));
+  const waveVec = (s: number, amp: number, kk: number): [number, number] => {
+    const t = kk * s + wavePhase;
     switch (p.retratoTrazo) {
-      case 'zigzag': return [0, amp * (2 / Math.PI) * Math.asin(Math.sin(t))];
+      case 'zigzag': {
+        // diente pronunciado con INCLINACIÓN: subida y bajada asimétricas
+        const d = 0.5 + sesgo * 0.35;
+        const ph = ((t / (2 * Math.PI)) % 1 + 1) % 1;
+        const tri = ph < d ? (ph / d) * 2 - 1 : 1 - ((ph - d) / (1 - d)) * 2;
+        return [0, amp * 1.35 * tri];
+      }
       case 'recta': return [0, 0];
       case 'bucle': {
         const tb = t * 1.6;
@@ -262,6 +272,7 @@ export function renderPortraitTo(
     thetaRad: number,
     noiseOff: number,
     withWave: boolean,
+    kMul: number,
     getHalf: (dark: number, taper: number, pitch: number) => number,
   ): void => {
     const ux = Math.cos(thetaRad), uy = Math.sin(thetaRad);
@@ -375,7 +386,7 @@ export function renderPortraitTo(
 
         const taper = taperAt(sx, sy);
         const amp = withWave ? maxAmp * ampK * darkS * taper : 0;
-        const [al, pe] = withWave ? waveVec(s + halfLen, amp) : [0, 0];
+        const [al, pe] = withWave ? waveVec(s + halfLen, amp, k * kMul) : [0, 0];
         const off = off0 + pe;
         const px = bx + nvx * off + ux * al;
         const py = by + nvy * off + uy * al;
@@ -401,32 +412,34 @@ export function renderPortraitTo(
   };
 
   // ---------- capa 1: trama principal (dirección CURSO) ----------
-  sweep(theta, 0, true, mainHalf);
+  sweep(theta, 0, true, 1, mainHalf);
 
   // ---------- DERIVA: 2ª trama del grabado rotada — moiré de billete ----------
   if (p.deriva > 0.01) {
     ctx.fillStyle = p.colorDeriva;
     ctx.globalAlpha = 0.6;
     const derivaRad = (p.deriva * Math.PI) / 180;
-    sweep(theta + derivaRad, 77.7, true, (dark, taper, pitch) =>
+    sweep(theta + derivaRad, 77.7, true, 1, (dark, taper, pitch) =>
       mainHalf(dark, taper, pitch) * 0.85);
     ctx.globalAlpha = 1;
     ctx.fillStyle = ink;
   }
 
-  // ---------- capa 2: cruzada perpendicular ondulada — malla de pasaporte ----------
+  // ---------- capa 2: cruzada ondulada más fina y corta — crossline ----------
+  // Otra profundidad: ondula a 0.6× de longitud y traza más delgado que la
+  // principal, como el crossline del grabador (el rombo de la malla se lee).
   if (capas >= 2) {
-    sweep(theta + Math.PI / 2, 31.7, true, (dark, taper, pitch) => {
-      const presence = smoothstep(0.42, 0.78, dark);
-      return Math.min(caladoK * pitch * 0.34 * presence * taper, pitch * 0.30);
+    sweep(theta + Math.PI / 2, 31.7, true, 0.6, (dark, taper, pitch) => {
+      const presence = smoothstep(0.38, 0.75, dark);
+      return Math.min(caladoK * pitch * 0.30 * presence * taper, pitch * 0.28);
     });
   }
 
-  // ---------- capa 3: diagonal recta — sólo sombras profundas (negro tejido) ----------
+  // ---------- capa 3: diagonal recta y finísima — sombras profundas ----------
   if (capas >= 3) {
-    sweep(theta + Math.PI / 4, 63.9, false, (dark, taper, pitch) => {
-      const presence = smoothstep(0.66, 0.94, dark);
-      return Math.min(caladoK * pitch * 0.26 * presence * taper, pitch * 0.24);
+    sweep(theta + Math.PI / 4, 63.9, false, 1, (dark, taper, pitch) => {
+      const presence = smoothstep(0.64, 0.92, dark);
+      return Math.min(caladoK * pitch * 0.22 * presence * taper, pitch * 0.20);
     });
   }
 }

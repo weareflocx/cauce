@@ -272,6 +272,11 @@ export function renderPortraitTo(
     const nSweep = Math.ceil((2 * halfExt) / spacing);
     // el bucle necesita paso fino para dibujar el rizo completo
     const stepS = Math.max(CW / 1400, spacing / (p.retratoTrazo === 'bucle' ? 6 : 4));
+    // suavizado del tono A LO LARGO de la línea: el grosor evoluciona fluido
+    // (~1.4 pasos de trama de memoria), como la mano del grabador
+    const smoothK = Math.min(0.5, Math.max(0.08, stepS / (spacing * 1.4)));
+    // los segmentos más cortos que ~1.6 pasos de trama son motas: fuera
+    const minPts = Math.max(3, Math.ceil((spacing * 1.6) / stepS));
 
     for (let li = 0; li < nSweep; li++) {
       const cRaw = -halfExt + spacing * (li + 0.5);
@@ -287,10 +292,12 @@ export function renderPortraitTo(
       const ampK = pitch / spacing; // la onda escala con el paso local
       let e1: Array<[number, number]> = [];
       let e2: Array<[number, number]> = [];
-      let lat = 0; // desviación lateral acumulada del seguimiento de contorno
+      let lat = 0;    // desviación lateral acumulada del seguimiento de contorno
+      let darkS = -1; // tono suavizado a lo largo de la línea (-1 = sin iniciar)
 
       const flush = (): void => {
-        if (e1.length > 1) {
+        darkS = -1;
+        if (e1.length >= minPts) {
           ctx.beginPath();
           ctx.moveTo(e1[0][0], e1[0][1]);
           for (let i = 1; i < e1.length; i++) ctx.lineTo(e1[i][0], e1[i][1]);
@@ -362,14 +369,18 @@ export function renderPortraitTo(
           dark = tone(sampleBilinear(grid.lum, grid.sw, grid.sh, u, v), blurAtSample);
         }
 
+        // suavizado direccional: el tono de la línea fluye, no tiembla
+        if (darkS < 0) darkS = dark;
+        else darkS += (dark - darkS) * smoothK;
+
         const taper = taperAt(sx, sy);
-        const amp = withWave ? maxAmp * ampK * dark * taper : 0;
+        const amp = withWave ? maxAmp * ampK * darkS * taper : 0;
         const [al, pe] = withWave ? waveVec(s + halfLen, amp) : [0, 0];
         const off = off0 + pe;
         const px = bx + nvx * off + ux * al;
         const py = by + nvy * off + uy * al;
 
-        const half = getHalf(dark, taper, pitch);
+        const half = getHalf(darkS, taper, pitch);
         if (half < 0.12) { flush(); continue; }
         e1.push([px + nvx * half, py + nvy * half]);
         e2.push([px - nvx * half, py - nvy * half]);

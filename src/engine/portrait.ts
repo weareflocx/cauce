@@ -168,8 +168,12 @@ export function renderPortraitTo(
   // --- tono ---
   const exposure = (p.retratoExposicion / 100) * 0.6;
   const contrast = 1 + p.retratoContraste / 50; // 1..3
-  const tone = (L: number): number => {
-    let v = L + exposure;
+  // DETALLE: máscara de enfoque de radio ancho (claridad) — realza aristas,
+  // ojos y texturas finas, la definición del grabado de billete.
+  const detalleK = (p.retratoDetalle / 100) * 2.2;
+  const tone = (L: number, blurL: number): number => {
+    let v = L + (L - blurL) * detalleK;
+    v = v + exposure;
     v = 0.5 + (v - 0.5) * contrast;
     v = Math.min(1, Math.max(0, v));
     const dark = p.retratoInvert ? v : 1 - v;
@@ -227,6 +231,7 @@ export function renderPortraitTo(
     thetaRad: number,
     noiseOff: number,
     withWave: boolean,
+    dots: boolean,
     getHalf: (dark: number, taper: number) => number,
   ): void => {
     const ux = Math.cos(thetaRad), uy = Math.sin(thetaRad);
@@ -235,12 +240,14 @@ export function renderPortraitTo(
     const halfLen = Math.hypot(CW, CH) / 2 + spacing;
     const halfExt = (Math.abs(CW * nvx) + Math.abs(CH * nvy)) / 2 + spacing;
     const nSweep = Math.ceil((2 * halfExt) / spacing);
-    const stepS = Math.max(CW / 1400, spacing / 4);
+    // PUNTOS: paso = paso de rejilla (un punto por celda); líneas: paso fino
+    const stepS = dots ? spacing * 0.92 : Math.max(CW / 1400, spacing / 4);
 
     for (let li = 0; li < nSweep; li++) {
       const c0 = -halfExt + spacing * (li + 0.5);
       let e1: Array<[number, number]> = [];
       let e2: Array<[number, number]> = [];
+      if (dots) ctx.beginPath();
 
       const flush = (): void => {
         if (e1.length > 1) {
@@ -255,12 +262,14 @@ export function renderPortraitTo(
         e2 = [];
       };
 
-      for (let s = -halfLen; s <= halfLen; s += stepS) {
+      // tresbolillo: las filas alternas se desplazan media celda (rotograbado)
+      const s0 = -halfLen + (dots && li % 2 === 1 ? stepS / 2 : 0);
+      for (let s = s0; s <= halfLen; s += stepS) {
         const bx = ccx + ux * s + nvx * c0;
         const by = ccy + uy * s + nvy * c0;
 
         // fuera del área de barrido: corta y sigue
-        if (bx < areaX0 || bx > areaX1 || by < areaY0 || by > areaY1) { flush(); continue; }
+        if (bx < areaX0 || bx > areaX1 || by < areaY0 || by > areaY1) { if (!dots) flush(); continue; }
 
         // coords normalizadas (independientes de la resolución de salida)
         const xN = (bx / CW) * 1200;
@@ -288,7 +297,8 @@ export function renderPortraitTo(
         const v = (sy - oy) / drawH;
         let dark = 0;
         if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
-          dark = tone(sampleBilinear(grid.lum, grid.sw, grid.sh, u, v));
+          const blurAtSample = sampleBilinear(grid.blur, grid.sw, grid.sh, u, v);
+          dark = tone(sampleBilinear(grid.lum, grid.sw, grid.sh, u, v), blurAtSample);
         }
 
         const taper = taperAt(sx, sy);
@@ -298,18 +308,30 @@ export function renderPortraitTo(
         const py = by + nvy * off;
 
         const half = getHalf(dark, taper);
+        if (dots) {
+          // stipple: un punto por celda, radio según tono (rotograbado / £20 Turner)
+          if (half >= 0.14) {
+            const r = Math.min(half * 1.15, spacing * 0.5);
+            ctx.moveTo(px + r, py);
+            ctx.arc(px, py, r, 0, 2 * Math.PI);
+          }
+          continue;
+        }
         if (half < 0.12) { flush(); continue; }
         e1.push([px + nvx * half, py + nvy * half]);
         e2.push([px - nvx * half, py - nvy * half]);
       }
-      flush();
+      if (dots) ctx.fill();
+      else flush();
     }
   };
 
   const theta = (p.curso * Math.PI) / 180;
+  const isDots = p.retratoTrazo === 'puntos';
+  const capas = Math.min(3, Math.max(1, Math.round(p.retratoCapas)));
 
-  // ---------- trama principal (dirección CURSO) ----------
-  sweep(theta, 0, true, (dark, taper) => {
+  // ---------- capa 1: trama principal (dirección CURSO) ----------
+  sweep(theta, 0, !isDots, isDots, (dark, taper) => {
     // anchura AM: espaciado constante, grosor variable, canal blanco garantizado
     let half = caladoK * (0.10 + 0.90 * dark) * spacing * 0.48;
     half = Math.min(half, spacing * 0.44);
@@ -317,11 +339,19 @@ export function renderPortraitTo(
     return half;
   });
 
-  // ---------- trama cruzada (perpendicular, sólo sombras profundas) ----------
-  if (p.retratoCruzada) {
-    sweep(theta + Math.PI / 2, 31.7, false, (dark, taper) => {
-      const shadow = smoothstep(0.55, 0.9, dark);
-      return Math.min(caladoK * spacing * 0.30 * shadow * taper, spacing * 0.34);
+  // ---------- capa 2: cruzada perpendicular — entra en medios tonos ----------
+  if (capas >= 2) {
+    sweep(theta + Math.PI / 2, 31.7, false, false, (dark, taper) => {
+      const presence = smoothstep(0.42, 0.78, dark);
+      return Math.min(caladoK * spacing * 0.34 * presence * taper, spacing * 0.30);
+    });
+  }
+
+  // ---------- capa 3: diagonal — sólo sombras profundas (negro tejido) ----------
+  if (capas >= 3) {
+    sweep(theta + Math.PI / 4, 63.9, false, false, (dark, taper) => {
+      const presence = smoothstep(0.66, 0.94, dark);
+      return Math.min(caladoK * spacing * 0.26 * presence * taper, spacing * 0.24);
     });
   }
 }

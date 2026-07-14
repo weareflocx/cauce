@@ -26,11 +26,13 @@ Abre `http://localhost:5173`.
 - **RETRATO** — foto → grabado de línea duotono (canvas 2D). Arrastra una imagen al
   lienzo; se procesa **en tu navegador, nada sube a servidor**. El tono se codifica
   en la anchura de línea a espaciado constante (halftoning AM, como el grabado de
-  billete): las líneas nunca se funden. Controles: TRAZO (onda / zigzag / recta),
-  RELIEVE (las líneas se abomban siguiendo el volumen de la imagen), TRAMA CRUZADA
-  (2ª trama en sombras profundas), EXPOSICIÓN y CONTRASTE. ENCUADRE escala la foto
-  y arrastrando el lienzo la recolocas (recorte). CORRIENTE VIVA también anima el
-  grabado y permite exportarlo a WebM/GIF.
+  billete): las líneas nunca se funden. Controles: TRAZO (onda / zigzag / recta /
+  **puntos** — stipple tipo £20 Turner), **CAPAS DE TRAMA** (1–3: cruzada en medios
+  tonos y tejido diagonal en sombras profundas, el tramado progresivo del billete),
+  **DETALLE** (realce de detalle fino — claridad de grabado), RELIEVE (las líneas
+  se abomban siguiendo el volumen), EXPOSICIÓN y CONTRASTE. ENCUADRE escala la
+  foto y arrastrando el lienzo la recolocas. Para grano de billete: CAUDAL 250–350.
+  MOVIMIENTO también anima el grabado y permite exportarlo a WebM/GIF.
 - **FORMA** — el patrón recortado dentro de un contenedor: círculo, «O de cauce»,
   píldora, arco, rombo, **LETRA** (hasta 4 caracteres — monogramas, «CAZ»…) o un
   `path` SVG pegado por ti. Toggle **BORDE** para contornear el contenedor con la

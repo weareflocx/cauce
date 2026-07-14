@@ -219,6 +219,7 @@ const SLIDER_META: Record<string, { name: string; desc: string }> = {
   marea: { name: 'MAREA', desc: 'Amplitud de la ondulación' },
   orillas: { name: 'ORILLAS', desc: 'Zona de calma en los bordes' },
   deriva: { name: 'DERIVA', desc: 'Rotación de la 2ª trama, 0–360° (0 = sin moiré)' },
+  retratoDetalle: { name: 'DETALLE', desc: 'Realce del detalle fino — claridad de grabado' },
   retratoRelieve: { name: 'RELIEVE', desc: 'Las líneas se abomban con el volumen' },
   retratoExposicion: { name: 'EXPOSICIÓN', desc: 'Brillo global de la foto' },
   retratoContraste: { name: 'CONTRASTE', desc: 'Refuerza la lectura de grabado' },
@@ -502,7 +503,7 @@ function buildPanel(): void {
   // RETRATO (solo modo retrato)
   if (mode === 'retrato') {
     const trazoWrap = el('div', 'seg');
-    const trazos: [TrazoKind, string][] = [['onda', 'ONDA'], ['zigzag', 'ZIGZAG'], ['recta', 'RECTA']];
+    const trazos: [TrazoKind, string][] = [['onda', 'ONDA'], ['zigzag', 'ZIGZAG'], ['recta', 'RECTA'], ['puntos', 'PUNTOS']];
     trazos.forEach(([k, label]) => {
       const b = el('button', params.retratoTrazo === k ? 'active' : '', label) as HTMLButtonElement;
       b.addEventListener('click', () => {
@@ -534,19 +535,35 @@ function buildPanel(): void {
     fitCtrl.appendChild(fitWrap);
     fitCtrl.appendChild(el('div', 'ctrl-desc', 'CUBRIR llena el lienzo sin dejar aire (recorta la foto)'));
 
-    const cruzToggle = makeToggle('TRAMA CRUZADA (SOMBRAS)', params.retratoCruzada, (on) => {
-      params.retratoCruzada = on; refreshJSON(); render();
+    // CAPAS: tramado progresivo (grabado clásico de billete)
+    const capasCtrl = el('div', 'ctrl');
+    capasCtrl.appendChild(el('div', 'ctrl-head', '<span class="ctrl-name">CAPAS DE TRAMA</span>'));
+    const capasWrap = el('div', 'seg');
+    [1, 2, 3].forEach((n) => {
+      const b = el('button', params.retratoCapas === n ? 'active' : '', String(n)) as HTMLButtonElement;
+      b.addEventListener('click', () => {
+        params.retratoCapas = n;
+        capasWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+        refreshJSON(); render();
+      });
+      capasWrap.appendChild(b);
     });
+    capasCtrl.appendChild(capasWrap);
+    capasCtrl.appendChild(el('div', 'ctrl-desc', '1 línea · 2 añade cruzada en medios · 3 teje las sombras (billete)'));
+
     const invToggle = makeToggle('INVERTIR TONO', params.retratoInvert, (on) => {
       params.retratoInvert = on; refreshJSON(); render();
     });
     panel.appendChild(group('Retrato (foto → grabado)', [
       trazoWrap,
+      capasCtrl,
       fitCtrl,
       slider('retratoZoom'),
-      slider('retratoRelieve'), slider('retratoExposicion'), slider('retratoContraste'),
-      cruzToggle, invToggle, loadBtn,
-      el('div', 'hint-inline', 'Arrastra una foto al lienzo y muévela arrastrando sobre él (ENCUADRE la escala). CURSO inclina la trama — cubre todo el lienzo a cualquier ángulo. ORILLAS a 0 sangra hasta el borde.'),
+      slider('retratoDetalle'), slider('retratoRelieve'),
+      slider('retratoExposicion'), slider('retratoContraste'),
+      invToggle, loadBtn,
+      el('div', 'hint-inline', 'Arrastra una foto al lienzo y muévela arrastrando sobre él (ENCUADRE la escala). CURSO inclina la trama — cubre todo el lienzo a cualquier ángulo. Sube CAUDAL (250–350) para grano de billete.'),
     ]));
   }
 

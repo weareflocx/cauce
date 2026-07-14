@@ -34,8 +34,9 @@ export interface TornoParams {
 
   // --- modo RETRATO ---
   retratoTrazo: TrazoKind;   // forma de la línea de grabado
+  retratoCapas: number;      // 1–3 capas de trama: cruzadas progresivas en medios/sombras
+  retratoDetalle: number;    // 0–100, realce de detalle fino (claridad de grabado)
   retratoRelieve: number;    // 0–100, warp por volumen: las líneas se abomban
-  retratoCruzada: boolean;   // 2ª trama cruzada en sombras profundas
   retratoExposicion: number; // -100..100, brillo global de la foto
   retratoContraste: number;  // 0–100, refuerza la lectura de grabado
   retratoInvert: boolean;    // invierte oscuro/claro
@@ -47,7 +48,7 @@ export interface TornoParams {
 
 export type FitKind = 'cubrir' | 'entera';
 
-export type TrazoKind = 'onda' | 'zigzag' | 'recta';
+export type TrazoKind = 'onda' | 'zigzag' | 'recta' | 'puntos';
 
 export type LienzoKind = '1080x1080' | '1920x1080' | '1080x1920' | '1080x1440';
 
@@ -82,8 +83,9 @@ export const DEFAULTS: TornoParams = {
   motionLoop: true,
   lienzo: '1080x1080',
   retratoTrazo: 'onda',
+  retratoCapas: 2,
+  retratoDetalle: 35,
   retratoRelieve: 40,
-  retratoCruzada: false,
   retratoExposicion: 0,
   retratoContraste: 50,
   retratoInvert: false,
@@ -146,6 +148,7 @@ export const RANGES: Record<string, Range> = {
   marea:     { min: 0,    max: 100, step: 1,    unit: '' },
   orillas:   { min: 0,    max: 20,  step: 0.5,  unit: '%' },
   deriva:    { min: 0,    max: 360, step: 1,    unit: '°' },
+  retratoDetalle:    { min: 0,    max: 100, step: 1, unit: '' },
   retratoRelieve:    { min: 0,    max: 100, step: 1, unit: '' },
   retratoExposicion: { min: -100, max: 100, step: 1, unit: '' },
   retratoContraste:  { min: 0,   max: 100, step: 1, unit: '' },
@@ -216,9 +219,12 @@ export function coerceParams(input: unknown): TornoParams {
   num('motionSegundos', { min: 1, max: 15, step: 1 });
   if (typeof o.motionLoop === 'boolean') p.motionLoop = o.motionLoop;
   if (o.lienzo === '1080x1080' || o.lienzo === '1920x1080' || o.lienzo === '1080x1920' || o.lienzo === '1080x1440') p.lienzo = o.lienzo;
-  if (o.retratoTrazo === 'onda' || o.retratoTrazo === 'zigzag' || o.retratoTrazo === 'recta') p.retratoTrazo = o.retratoTrazo;
+  if (o.retratoTrazo === 'onda' || o.retratoTrazo === 'zigzag' || o.retratoTrazo === 'recta' || o.retratoTrazo === 'puntos') p.retratoTrazo = o.retratoTrazo;
   if (o.retratoFit === 'cubrir' || o.retratoFit === 'entera') p.retratoFit = o.retratoFit;
-  if (typeof o.retratoCruzada === 'boolean') p.retratoCruzada = o.retratoCruzada;
+  if (typeof o.retratoCapas === 'number' && Number.isFinite(o.retratoCapas)) p.retratoCapas = Math.min(3, Math.max(1, Math.round(o.retratoCapas)));
+  // Compat: recetas antiguas con retratoCruzada (boolean).
+  else if (typeof o.retratoCruzada === 'boolean') p.retratoCapas = o.retratoCruzada ? 2 : 1;
+  num('retratoDetalle', RANGES.retratoDetalle);
   if (typeof o.retratoInvert === 'boolean') p.retratoInvert = o.retratoInvert;
   return p;
 }

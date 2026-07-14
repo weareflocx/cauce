@@ -75,7 +75,7 @@ export interface TornoParams {
 
 export type FitKind = 'cubrir' | 'entera';
 
-export type SymbolKind = 'onda' | 'abanico' | 'ala' | 'arcos' | 'cruce' | 'orbita' | 'concha' | 'codo' | 'aro';
+export type SymbolKind = 'onda' | 'abanico' | 'ala' | 'arcos' | 'cruce' | 'orbita' | 'concha' | 'codo' | 'aro' | 'delta';
 
 export type RemateKind = 'romo' | 'recto';
 
@@ -291,6 +291,12 @@ export const PRESETS: Preset[] = [
     params: { symTipo: 'aro', symLineas: 4, symGrosor: 62, symCurva: 14, symEscala: 62, symGiro: 0, symX: -6, symY: 0, symRemate: 'recto', symB: true, symBTipo: 'aro', symBLineas: 4, symBGrosor: 55, symBCurva: 0, symBEscala: 52, symBGiro: 0, symBX: 20, symBY: 0, symBModo: 'contraforma', semilla: 2049 },
   },
   {
+    nombre: 'Delta',
+    descripcion: 'El caudal se ramifica en canales y dibuja la C',
+    mode: 'symbol',
+    params: { symTipo: 'delta', symLineas: 5, symGrosor: 55, symCurva: 70, symEscala: 64, symGiro: 0, symX: 0, symY: 0, symRemate: 'recto', symB: false, semilla: 2049 },
+  },
+  {
     nombre: 'Mirada',
     descripcion: 'Dos arcos enfrentados — el párpado del canal',
     mode: 'symbol',
@@ -401,7 +407,7 @@ export function coerceParams(input: unknown): TornoParams {
   if (typeof o.formaBorde === 'boolean') p.formaBorde = o.formaBorde;
   const symKind = (v: unknown): v is SymbolKind =>
     v === 'onda' || v === 'abanico' || v === 'ala' || v === 'arcos' || v === 'cruce'
-    || v === 'orbita' || v === 'concha' || v === 'codo' || v === 'aro';
+    || v === 'orbita' || v === 'concha' || v === 'codo' || v === 'aro' || v === 'delta';
   if (symKind(o.symTipo)) p.symTipo = o.symTipo;
   if (o.symRemate === 'romo' || o.symRemate === 'recto') p.symRemate = o.symRemate;
   num('symLineas', RANGES.symLineas);

@@ -350,7 +350,8 @@ function buildPanel(): void {
   if (mode === 'symbol') {
     const TIPOS: [SymbolKind, string][] = [
       ['onda', 'ONDA'], ['abanico', 'ABANICO'], ['ala', 'ALA'], ['arcos', 'ARCOS'],
-      ['cruce', 'CRUCE'], ['orbita', 'ÓRBITA'], ['concha', 'CONCHA'], ['codo', 'CODO'], ['aro', 'ARO / C'],
+      ['cruce', 'CRUCE'], ['orbita', 'ÓRBITA'], ['concha', 'CONCHA'], ['codo', 'CODO'],
+      ['aro', 'ARO / C'], ['delta', 'DELTA'],
     ];
     const tipoSeg = (key: 'symTipo' | 'symBTipo'): HTMLElement => {
       const wrap = el('div', 'seg');

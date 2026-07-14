@@ -270,6 +270,48 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
       break;
     }
 
+    // ---------------- DELTA: el caudal se ramifica y dibuja la C ----------------
+    // Tronco horizontal desde la izquierda; las ramas nacen escalonadas (las
+    // exteriores antes — de menos a más) con tangente horizontal al salir y
+    // radial al llegar; los remates caen sobre un arco: la silueta de la C.
+    case 'delta': {
+      const width = Math.max(S * 0.014, S * 0.06 * G);
+      const x0 = -S * 0.52;  // arranque del caudal
+      const xb = -S * 0.04;  // zona de ramificación (la rama central parte aquí)
+      const c0x = -S * 0.06; // centro del arco de remates
+      const rEnd = S * 0.53;
+      const maxA = ((28 + A * 62) * Math.PI) / 180; // apertura del abanico (CURVA cierra la C)
+      const breathe = 1 + Math.sin(TAU * phase) * 0.04;
+
+      // tronco
+      strokes.push({ d: pathFrom([pt(x0, 0), pt(xb + width * 0.4, 0)]), width });
+
+      for (let i = 0; i < n; i++) {
+        const tt = n > 1 ? (i / (n - 1)) * 2 - 1 : 0; // -1..1
+        const ang = tt * maxA * breathe + (rnd() - 0.5) * 0.03;
+        // salida escalonada: cuanto más exterior, antes nace del tronco
+        const xd = xb - Math.abs(tt) * S * 0.22;
+        const p0x = xd, p0y = 0;
+        const p3x = c0x + Math.cos(ang) * rEnd;
+        const p3y = Math.sin(ang) * rEnd;
+        // Bézier cúbica: sale horizontal, llega radial (geométrico-orgánico)
+        const c1x = p0x + (p3x - p0x) * 0.42, c1y = 0;
+        const c2x = c0x + Math.cos(ang) * rEnd * 0.68;
+        const c2y = Math.sin(ang) * rEnd * 0.68;
+        const pts: Array<[number, number]> = [];
+        const steps = 36;
+        for (let j = 0; j <= steps; j++) {
+          const u = j / steps;
+          const v = 1 - u;
+          const bx = v * v * v * p0x + 3 * v * v * u * c1x + 3 * v * u * u * c2x + u * u * u * p3x;
+          const by = v * v * v * p0y + 3 * v * v * u * c1y + 3 * v * u * u * c2y + u * u * u * p3y;
+          pts.push(pt(bx, by));
+        }
+        strokes.push({ d: pathFrom(pts), width });
+      }
+      break;
+    }
+
     // ---------------- CRUCE: dos caudales tejidos ----------------
     case 'cruce':
     default: {

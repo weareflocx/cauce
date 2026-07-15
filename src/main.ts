@@ -126,6 +126,64 @@ function currentShape(): FrameShape | undefined {
 let animTime = 0;
 let animHandle = 0;
 
+// ---------------- historial (deshacer / rehacer) ----------------
+const HIST_MAX = 50;
+let histStack: string[] = [];
+let redoStack: string[] = [];
+let lastPush = 0;
+
+function snapshot(): string {
+  return JSON.stringify({ mode, params });
+}
+
+/** Captura el estado ANTES de un gesto (coalescido: una ráfaga = un paso). */
+function pushHistory(): void {
+  const snap = snapshot();
+  if (histStack[histStack.length - 1] === snap) return;
+  const now = performance.now();
+  if (now - lastPush < 350 && histStack.length) { lastPush = now; return; }
+  histStack.push(snap);
+  if (histStack.length > HIST_MAX) histStack.shift();
+  redoStack = [];
+  lastPush = now;
+}
+
+function applyState(snap: string): void {
+  let o: { mode?: string; params?: unknown };
+  try { o = JSON.parse(snap); } catch { return; }
+  params = coerceParams(o.params);
+  if (o.mode === 'patron' || o.mode === 'retrato' || o.mode === 'forma' || o.mode === 'symbol') mode = o.mode;
+  engine = new FlowEngine(params.semilla);
+  document.querySelectorAll('#modes button').forEach((b) => {
+    b.classList.toggle('active', (b as HTMLElement).dataset.mode === mode);
+  });
+  applyCanvasSize();
+  buildPanel();
+  syncAnim();
+  render();
+}
+
+// ---------------- recetas guardadas (localStorage) ----------------
+interface UserPreset { nombre: string; receta: Record<string, unknown> }
+const LS_RECETAS = 'caz-recetas';
+
+function loadUserPresets(): UserPreset[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(LS_RECETAS) || '[]');
+    return Array.isArray(v) ? v.filter((p) => p && typeof p.nombre === 'string') : [];
+  } catch { return []; }
+}
+
+function saveUserPreset(nombre: string, receta: Record<string, unknown>): void {
+  const list = loadUserPresets().filter((p) => p.nombre !== nombre);
+  list.push({ nombre, receta });
+  localStorage.setItem(LS_RECETAS, JSON.stringify(list));
+}
+
+function deleteUserPreset(nombre: string): void {
+  localStorage.setItem(LS_RECETAS, JSON.stringify(loadUserPresets().filter((p) => p.nombre !== nombre)));
+}
+
 function render(): void {
   const ink = params.colorTinta;
   const paper = params.colorFondo;
@@ -347,6 +405,51 @@ function buildPanel(): void {
       presetWrap.appendChild(b);
     });
     panel.appendChild(group('Presets de fábrica', [presetWrap]));
+  }
+
+  // MIS RECETAS — configuraciones guardadas con nombre (persisten en el navegador)
+  {
+    const children: HTMLElement[] = [];
+    const saved = loadUserPresets();
+    if (saved.length) {
+      const misWrap = el('div', 'presets');
+      saved.forEach((up) => {
+        const row = el('span', 'user-preset');
+        const b = el('button', 'preset-btn', up.nombre) as HTMLButtonElement;
+        b.title = 'Aplicar esta receta guardada';
+        b.addEventListener('click', () => {
+          pushHistory();
+          applyState(JSON.stringify({ mode: up.receta.mode ?? mode, params: up.receta }));
+        });
+        const del = el('button', 'preset-del', '×') as HTMLButtonElement;
+        del.title = `Borrar «${up.nombre}»`;
+        del.addEventListener('click', () => { deleteUserPreset(up.nombre); buildPanel(); });
+        row.appendChild(b);
+        row.appendChild(del);
+        misWrap.appendChild(row);
+      });
+      children.push(misWrap);
+    }
+    const saveRow = el('div', 'row');
+    const nameInput = document.createElement('input');
+    nameInput.className = 'seed-input';
+    nameInput.type = 'text';
+    nameInput.placeholder = 'Nombre de la receta…';
+    nameInput.maxLength = 32;
+    const saveBtn = el('button', 'chip', 'GUARDAR') as HTMLButtonElement;
+    const doSave = (): void => {
+      const nombre = nameInput.value.trim() || `Receta ${loadUserPresets().length + 1}`;
+      saveUserPreset(nombre, { mode, ...params });
+      nameInput.value = '';
+      buildPanel();
+    };
+    saveBtn.addEventListener('click', doSave);
+    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); });
+    saveRow.appendChild(nameInput);
+    saveRow.appendChild(saveBtn);
+    children.push(saveRow);
+    children.push(el('div', 'hint-inline', 'Guarda el estado completo (modo, parámetros, colores, lienzo) con tu nombre. Mismo nombre = sobrescribe. Ctrl+Z deshace, Ctrl+Shift+Z rehace.'));
+    panel.appendChild(group('Mis recetas', children));
   }
 
   // FLUJO
@@ -888,8 +991,45 @@ stage.addEventListener('drop', (e) => {
   if (f && f.type.startsWith('image/')) { if (mode !== 'retrato') setMode('retrato'); loadImageFile(f); }
 });
 
+// ---------------- deshacer / rehacer ----------------
+// Captura el estado justo antes de cada gesto (clic o tecleo en el panel,
+// cabecera o lienzo) — un gesto = un paso de historial.
+const captureState = (): void => pushHistory();
+panel.addEventListener('pointerdown', captureState, true);
+document.getElementById('topbar')!.addEventListener('pointerdown', captureState, true);
+canvas.addEventListener('pointerdown', captureState, true);
+panel.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) captureState();
+}, true);
+
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const tag = (document.activeElement?.tagName || '').toLowerCase();
+  const editing = tag === 'input' || tag === 'textarea';
+  if (editing) return; // dentro de un campo manda el deshacer nativo del texto
+  const k = e.key.toLowerCase();
+  if (k === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    if (!histStack.length) return;
+    const cur = snapshot();
+    let prev = histStack.pop()!;
+    if (prev === cur && histStack.length) prev = histStack.pop()!;
+    if (prev === cur) return;
+    redoStack.push(cur);
+    applyState(prev);
+  } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+    e.preventDefault();
+    if (!redoStack.length) return;
+    const cur = snapshot();
+    const next = redoStack.pop()!;
+    histStack.push(cur);
+    applyState(next);
+  }
+});
+
 // ---------------- arranque ----------------
 applyCanvasSize();
 canvas.style.cursor = 'grab';
 buildPanel();
 render();
+histStack.push(snapshot()); // el estado inicial es el primer paso del historial

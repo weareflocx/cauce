@@ -62,6 +62,14 @@ Abre `http://localhost:5173`.
 | **DERIVA** | Rotación de la 2ª trama para moiré, 0–360° (0 = sin moiré), con color propio |
 | **SEMILLA** | Seed del PRNG (determinista, reproducible) |
 
+## Flujo de trabajo
+
+- **Deshacer / rehacer**: Ctrl+Z y Ctrl+Shift+Z (o Ctrl+Y). Cada gesto —un
+  slider, un preset, un cambio de modo— es un paso de historial (50 niveles).
+- **Mis recetas**: guarda el estado completo (modo, parámetros, colores,
+  lienzo) con un nombre propio; persiste en el navegador (localStorage).
+  Mismo nombre = sobrescribe; × borra. Un clic la aplica desde cualquier modo.
+
 ## Reproducibilidad
 
 Misma semilla + mismos parámetros = misma pieza, siempre (PRNG `splitmix32` +

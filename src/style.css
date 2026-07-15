@@ -197,6 +197,14 @@ input[type=range]::-moz-range-thumb {
 .seg button:hover:not(.active), .chip:hover { background: var(--arena); }
 
 .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.user-preset { display: inline-flex; }
+.user-preset .preset-btn { border-right: none; }
+.preset-del {
+  font-family: var(--mono); font-size: 11px; padding: 7px 8px;
+  border: 1px solid var(--tinta); background: var(--papel); color: var(--tinta);
+  cursor: pointer;
+}
+.preset-del:hover { background: var(--senal); border-color: var(--senal); color: var(--papel); }
 .preset-btn {
   font-family: var(--grotesk); font-size: 10.5px; letter-spacing: 0.06em;
   text-transform: uppercase; padding: 7px 11px;

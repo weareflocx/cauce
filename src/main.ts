@@ -1003,10 +1003,14 @@ panel.addEventListener('keydown', (e) => {
 }, true);
 
 document.addEventListener('keydown', (e) => {
-  if (!(e.ctrlKey || e.metaKey)) return;
-  const tag = (document.activeElement?.tagName || '').toLowerCase();
-  const editing = tag === 'input' || tag === 'textarea';
-  if (editing) return; // dentro de un campo manda el deshacer nativo del texto
+  if (!(e.ctrlKey || e.metaKey)) return; // Cmd+Z en Mac, Ctrl+Z en el resto
+  // sólo los campos de TEXTO conservan su deshacer nativo; en sliders,
+  // botones o el lienzo manda el historial global
+  const ae = document.activeElement as HTMLElement | null;
+  const tag = (ae?.tagName || '').toLowerCase();
+  const type = tag === 'input' ? ((ae as HTMLInputElement).type || 'text') : '';
+  const editing = tag === 'textarea' || type === 'text' || type === 'number';
+  if (editing) return;
   const k = e.key.toLowerCase();
   if (k === 'z' && !e.shiftKey) {
     e.preventDefault();
@@ -1025,7 +1029,7 @@ document.addEventListener('keydown', (e) => {
     histStack.push(cur);
     applyState(next);
   }
-});
+}, true); // fase de captura: nos adelantamos al comportamiento del navegador
 
 // ---------------- arranque ----------------
 applyCanvasSize();

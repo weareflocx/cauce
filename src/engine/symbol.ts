@@ -31,6 +31,7 @@ interface LayerCfg {
   x: number;       // -50..50 (% del medio lienzo)
   y: number;
   trenza: number;  // 0–100, los caminos se cruzan y tejen ojos (DELTA)
+  punta: number;   // 0–100, unión del óvalo: redondeada ↔ vértice (ESPIRA)
   paper: boolean;  // contraforma
   seed: number;
 }
@@ -335,6 +336,39 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
       break;
     }
 
+    // ---------------- ESPIRA: óvalos unidos por sus extremos ----------------
+    // Todas las vueltas comparten el punto de unión (el extremo derecho) y
+    // cada una va rotada un paso alrededor de él — el ovillo. PUNTA decide la
+    // unión: 0 = redondeada (elipse, cuerda enrollada); 100 = vértice
+    // (lágrima con cúspide: ojo, gota, pétalo).
+    case 'espira': {
+      const width = wGlobal;
+      const tipX = S * 0.42;                       // el punto de unión común
+      const aspect = 0.3 + A * 0.5;                // CURVA: aplastamiento del óvalo
+      const pShape = (cfg.punta / 100) * 1.7;      // PUNTA: exponente de la cúspide
+      const rotStep = ((4 + rnd() * 8) * Math.PI) / 180;
+      const sway = Math.sin(TAU * phase) * 0.05;
+      for (let i = 0; i < n; i++) {
+        const a = S * 0.5 * (n > 1 ? 0.34 + (0.66 * (i + 1)) / n : 1) * (0.97 + rnd() * 0.06);
+        const b = a * aspect;
+        const rot = (i - (n - 1) / 2) * rotStep + sway * (i / Math.max(1, n));
+        const cosR = Math.cos(rot), sinR = Math.sin(rot);
+        const pts: Array<[number, number]> = [];
+        const steps = 88;
+        for (let j = 0; j <= steps; j++) {
+          const th = (j / steps) * TAU;
+          // lágrima: y se pellizca hacia 0 en la unión (th = 0 / 2π)
+          const pinch = pShape > 0.01 ? Math.pow(Math.abs(Math.sin(th / 2)), pShape) : 1;
+          const ex = a * (Math.cos(th) - 1); // la unión queda en (0,0) local
+          const ey = b * Math.sin(th) * pinch;
+          // rotar alrededor de la unión y llevar al punto común
+          pts.push(pt(tipX + ex * cosR - ey * sinR, ex * sinR + ey * cosR));
+        }
+        strokes.push({ d: pathFrom(pts) + 'Z', width });
+      }
+      break;
+    }
+
     // ---------------- CRUCE: dos caudales tejidos ----------------
     case 'cruce':
     default: {
@@ -381,14 +415,14 @@ export function buildSymbol(p: TornoParams, view: View, phase = 0): SymbolStroke
   const capaA: LayerCfg = {
     tipo: p.symTipo, lineas: p.symLineas, grosor: p.symGrosor, curva: p.symCurva,
     escala: p.symEscala, giro: p.symGiro, x: p.symX, y: p.symY,
-    trenza: p.symTrenza, paper: false, seed: p.semilla,
+    trenza: p.symTrenza, punta: p.symPunta, paper: false, seed: p.semilla,
   };
   const strokes = buildLayer(capaA, view, phase);
   if (p.symB) {
     const capaB: LayerCfg = {
       tipo: p.symBTipo, lineas: p.symBLineas, grosor: p.symBGrosor, curva: p.symBCurva,
       escala: p.symBEscala, giro: p.symBGiro, x: p.symBX, y: p.symBY,
-      trenza: p.symBTrenza, paper: p.symBModo === 'contraforma', seed: (p.semilla ^ 0x51ed2705) >>> 0,
+      trenza: p.symBTrenza, punta: p.symBPunta, paper: p.symBModo === 'contraforma', seed: (p.semilla ^ 0x51ed2705) >>> 0,
     };
     strokes.push(...buildLayer(capaB, view, phase));
   }

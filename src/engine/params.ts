@@ -344,15 +344,15 @@ export const PRESETS: Preset[] = [
   },
   {
     nombre: 'Espira',
-    descripcion: 'Óvalos anidados unidos por sus extremos — el ovillo',
+    descripcion: 'Banda de Möbius: corrientes sobre una superficie no orientable',
     mode: 'symbol',
-    params: { symTipo: 'espira', symLineas: 5, symGrosor: 40, symCurva: 30, symEscala: 66, symGiro: 0, symX: 0, symY: 0, symTrenza: 0, symPunta: 0, symRemate: 'recto', symB: false, semilla: 2049 },
+    params: { symTipo: 'espira', symLineas: 7, symGrosor: 18, symCurva: 55, symEscala: 66, symGiro: -32, symX: 0, symY: 0, symTrenza: 0, symPunta: 58, symRemate: 'recto', symB: false, semilla: 2049 },
   },
   {
-    nombre: 'Gota',
-    descripcion: 'Ojos anidados: vértice en ambos extremos de la cinta',
+    nombre: 'Nudo',
+    descripcion: 'Möbius de tres medias torsiones — el nudo del caudal',
     mode: 'symbol',
-    params: { symTipo: 'espira', symLineas: 3, symGrosor: 40, symCurva: 60, symEscala: 66, symGiro: 0, symX: 0, symY: 0, symTrenza: 0, symPunta: 100, symRemate: 'recto', symB: false, semilla: 2049 },
+    params: { symTipo: 'espira', symLineas: 5, symGrosor: 18, symCurva: 40, symEscala: 66, symGiro: 0, symX: 0, symY: 0, symTrenza: 55, symPunta: 45, symRemate: 'recto', symB: false, semilla: 2049 },
   },
   {
     nombre: 'Mirada',

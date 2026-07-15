@@ -19,6 +19,8 @@ export interface SymbolStroke {
   casing?: boolean;
   /** CONTRAFORMA: el trazo pinta con el color del papel (espacio negativo). */
   paper?: boolean;
+  /** Atenuación por profundidad (ESPIRA 3D): 0–1, por defecto 1. */
+  opacity?: number;
 }
 
 interface LayerCfg {
@@ -344,36 +346,69 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
     // unión: 0 = redondeada (elipse, cuerda enrollada); 100 = vértice
     // (lágrima con cúspide: ojo, gota, pétalo).
     case 'espira': {
-      // CINTA DE MÖBIUS continua: UN solo trazo cerrado recorre las n vueltas
-      // y se une consigo mismo — principio y final son el mismo punto, la
-      // cinta es infinita. A lo largo del recorrido la torsión evoluciona:
-      // el óvalo gira en 3D (se aplasta hasta línea y se reabre, |cos πw|),
-      // crece y decrece, y su plano oscila. En MOVIMIENTO la torsión VIAJA
-      // por la cinta (w = u + fase): bucle perpetuo sin costura.
+      // MÖBIUS FLOW — superficie de Möbius paramétrica real, portada de
+      // Cauce System 05. Corrientes a lo ancho de una banda no orientable:
+      // la corriente central cierra en 1 revolución; las laterales necesitan
+      // DOS (la no-orientabilidad: recorren ambas caras antes de cerrar).
+      // Proyección 3D (inclinación + guiñada con precesión + perspectiva) y
+      // profundidad por bins con atenuación. El bucle avanza MEDIA torsión
+      // por ciclo: la banda sin orientación cae sobre sí misma — sin costura.
       const width = wGlobal;
-      const tipX = S * 0.42;                       // la cintura de la cinta
-      const aspect = 0.3 + A * 0.5;                // CURVA: aplastamiento base
-      const pShape = (cfg.punta / 100) * 1.6;      // PUNTA: cúspide en AMBOS extremos
-      const maxFan = ((10 + rnd() * 12) * Math.PI) / 180;
-      const phiA = rnd() * TAU;
-      const steps = 88 * n;
-      const pts: Array<[number, number]> = [];
-      for (let j = 0; j <= steps; j++) {
-        const u = j / steps;            // 0..1 — la cinta entera
-        const th = u * n * TAU;         // n vueltas
-        const w = u + phase;            // la torsión viaja por la cinta
-        const rot = maxFan * Math.sin(TAU * w + phiA) * 1.1;
-        const squash = 0.32 + 0.68 * Math.abs(Math.cos(Math.PI * w));
-        const a = S * 0.5 * (0.86 + 0.12 * Math.cos(TAU * w + phiA * 0.7));
-        const b = a * Math.max(0.05, aspect * squash);
-        // ojo: el pellizco actúa en los DOS extremos (th = 0 y th = π)
-        const pinch = pShape > 0.01 ? Math.pow(Math.abs(Math.sin(th)), pShape) : 1;
-        const ex = a * (Math.cos(th) - 1); // la cintura queda en (0,0) local
-        const ey = b * Math.sin(th) * pinch;
-        const cosR = Math.cos(rot), sinR = Math.sin(rot);
-        pts.push(pt(tipX + ex * cosR - ey * sinR, ex * sinR + ey * cosR));
+      const currents = Math.min(25, 2 * n + 1);        // LÍNEAS → corrientes (impar)
+      const sideCount = (currents - 1) / 2;
+      const halfTwists = 1 + 2 * Math.round((cfg.trenza / 100) * 2); // TRENZA → 1,3,5
+      const cycle = TAU * (((phase % 1) + 1) % 1);
+      const stripW = (0.16 + A * 0.56) * (1 + 0.07 * Math.sin(cycle)); // CURVA → anchura (respira)
+      const mPhase = cycle * 0.5;                       // media torsión por ciclo
+      const tilt = ((20 + (cfg.punta / 100) * 65) * Math.PI) / 180; // PUNTA → inclinación 3D
+      const yawDeg = -16 + (rnd() - 0.5) * 28 + 4 * Math.sin(cycle); // precesión
+      const yaw = (yawDeg * Math.PI) / 180;
+      const persp = 0.48;
+      const scale = S * 0.48;
+      const depthRange = 1 + stripW;
+
+      const ct = Math.cos(tilt), st = Math.sin(tilt);
+      const cyw = Math.cos(yaw), syw = Math.sin(yaw);
+      const project = (x: number, y: number, z: number): [number, number, number] => {
+        const ty = y * ct - z * st;
+        const tz = y * st + z * ct;
+        const tx = x * cyw + tz * syw;
+        const tz2 = -x * syw + tz * cyw;
+        const ps = 1 / (1 - (persp * tz2) / (2.4 * depthRange));
+        return [tx * ps * scale, ty * ps * scale, tz2];
+      };
+      const sample = (u: number, v: number): [number, number, number] => {
+        const cs = halfTwists * u * 0.5 + mPhase;
+        const dist = 1 + v * Math.cos(cs);
+        return project(dist * Math.cos(u), dist * Math.sin(u), v * Math.sin(cs));
+      };
+
+      const BINS = 10;
+      const bins: string[] = Array(BINS).fill('');
+      const addCurrent = (v: number, revs: number, samples: number): void => {
+        let prev = sample(0, v);
+        for (let j = 1; j <= samples; j++) {
+          const u = (TAU * revs * j) / samples;
+          const cur = sample(u, v);
+          const depth = (prev[2] + cur[2]) * 0.5;
+          const nd = Math.min(0.999, Math.max(0, 0.5 + depth / (2 * depthRange)));
+          const b = Math.floor(nd * BINS);
+          const p1 = pt(prev[0], prev[1]);
+          const p2 = pt(cur[0], cur[1]);
+          bins[b] += `M${p1[0].toFixed(2)} ${p1[1].toFixed(2)}L${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+          prev = cur;
+        }
+      };
+
+      addCurrent(0, 1, 144);
+      for (let i = 1; i <= sideCount; i++) addCurrent((stripW * i) / sideCount, 2, 288);
+
+      const depthFade = 0.46;
+      for (let b = 0; b < BINS; b++) {
+        if (!bins[b]) continue;
+        const op = 1 - depthFade * (1 - b / (BINS - 1)) * 0.82;
+        strokes.push({ d: bins[b], width, opacity: op });
       }
-      strokes.push({ d: pathFrom(pts) + 'Z', width });
       break;
     }
 
@@ -464,7 +499,9 @@ export function drawSymbolFrame(
     }
     ctx.strokeStyle = st.paper ? p.colorFondo : p.colorTinta;
     ctx.lineWidth = st.width;
+    ctx.globalAlpha = st.paper ? 1 : (st.opacity ?? 1); // profundidad 3D
     ctx.stroke(path);
+    ctx.globalAlpha = 1;
   }
   ctx.restore();
 }

@@ -214,7 +214,9 @@ function render(): void {
         s += `<path d="${st.d}" fill="none" stroke="${paper}" stroke-width="${(st.width * 1.6).toFixed(2)}" stroke-linecap="${cap}" stroke-linejoin="round"/>`;
       }
       const color = st.paper ? paper : ink;
-      s += `<path d="${st.d}" fill="none" stroke="${color}" stroke-width="${st.width.toFixed(2)}" stroke-linecap="${cap}" stroke-linejoin="round"/>`;
+      const op = !st.paper && st.opacity !== undefined && st.opacity < 1
+        ? ` stroke-opacity="${st.opacity.toFixed(3)}"` : '';
+      s += `<path d="${st.d}" fill="none" stroke="${color}" stroke-width="${st.width.toFixed(2)}" stroke-linecap="${cap}" stroke-linejoin="round"${op}/>`;
     }
     svg.innerHTML = s;
     return;
@@ -320,9 +322,9 @@ const SLIDER_META: Record<string, { name: string; desc: string }> = {
   symGiro: { name: 'GIRO', desc: 'Rotación de la capa' },
   symX: { name: 'POSICIÓN X', desc: 'Desplaza la capa en horizontal' },
   symY: { name: 'POSICIÓN Y', desc: 'Desplaza la capa en vertical' },
-  symTrenza: { name: 'TRENZA', desc: 'Los caminos se cruzan y tejen ojos/hojas (DELTA)' },
+  symTrenza: { name: 'TRENZA', desc: 'DELTA: cruces y hojas · ESPIRA: medias torsiones de la banda' },
   symBTrenza: { name: 'TRENZA B', desc: 'Trenzado de la capa B (DELTA)' },
-  symPunta: { name: 'PUNTA', desc: 'Unión del óvalo: redondeada ↔ vértice — ojo/gota (ESPIRA)' },
+  symPunta: { name: 'PUNTA', desc: 'ESPIRA: inclinación 3D de la banda (vista plana ↔ frontal)' },
   symBPunta: { name: 'PUNTA B', desc: 'Vértice de la capa B (ESPIRA)' },
   symBLineas: { name: 'LÍNEAS B', desc: 'Trazos de la capa B' },
   symBGrosor: { name: 'GROSOR B', desc: 'Peso del trazo de la capa B' },

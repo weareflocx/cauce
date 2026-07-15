@@ -414,12 +414,17 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
         flushRun();
       };
 
-      // LÍNEAS = corrientes reales, 1:1. Cada corriente es UNA línea cerrada
-      // que, por la topología de Möbius, envuelve la banda DOS veces (dos
-      // óvalos por línea — el mínimo irreducible). Ninguna va en el eje
-      // exacto (v = 0 sería un círculo inmóvil): todas fluyen con la torsión.
-      for (let i = 0; i < n; i++) {
-        const v = (stripW * (i + 0.5)) / n;
+      // LÍNEAS suma UNA vuelta visible por paso (visibles = n + 1, desde el
+      // mínimo topológico de 2). Los pares salen de corrientes normales (una
+      // línea = dos vueltas, Möbius); la vuelta impar la pone una corriente
+      // CASI-EJE: sus dos vueltas casi coinciden → se lee como un solo aro,
+      // y al no estar en v = 0 exacto sigue fluyendo con la torsión.
+      const visibles = n + 1;
+      const pares = Math.floor(visibles / 2);
+      const central = visibles % 2 === 1;
+      if (central) addCurrent(stripW * 0.05, 2, 288);
+      for (let i = 0; i < pares; i++) {
+        const v = (stripW * (i + 0.6)) / (pares + 0.1);
         addCurrent(v, 2, 288);
       }
 

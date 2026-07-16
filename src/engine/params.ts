@@ -67,6 +67,7 @@ export interface TornoParams {
 
   // --- modo RETRATO ---
   retratoTrazo: TrazoKind;   // forma de la línea de grabado
+  retratoGeo: GeoKind;       // geometría del raíl: paralela o espiral desde el centro
   retratoLongitud: number;   // 5–100, longitud de onda del trazo (corta ↔ larga)
   retratoSesgo: number;      // -100..100, inclinación del diente del zigzag
   retratoCapas: number;      // 1–3 capas de trama: cruzadas progresivas en medios/sombras
@@ -90,7 +91,8 @@ export type RemateKind = 'romo' | 'recto';
 
 export type CapaModo = 'tinta' | 'contraforma';
 
-export type TrazoKind = 'onda' | 'zigzag' | 'recta' | 'bucle';
+export type TrazoKind = 'onda' | 'zigzag' | 'recta' | 'bucle' | 'guiones';
+export type GeoKind = 'paralela' | 'espiral';
 
 export type LienzoKind = '1080x1080' | '1920x1080' | '1080x1920' | '1080x1440';
 
@@ -154,6 +156,7 @@ export const DEFAULTS: TornoParams = {
   motionLoop: true,
   lienzo: '1080x1080',
   retratoTrazo: 'onda',
+  retratoGeo: 'paralela',
   retratoLongitud: 30,
   retratoSesgo: 0,
   retratoCapas: 2,
@@ -282,6 +285,19 @@ export const PRESETS: Preset[] = [
     descripcion: 'La corriente lleva el retrato — onda larga, contorno alto',
     mode: 'retrato',
     params: { caudal: 180, calado: 1.3, marea: 70, corriente: 10, cauce: 12, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'onda', retratoLongitud: 70, retratoCapas: 1, retratoContorno: 65, retratoDetalle: 40, retratoRelieve: 35, retratoContraste: 50, semilla: 2049 },
+  },
+
+  {
+    nombre: 'Estela',
+    descripcion: 'Guiones: el tono es el ritmo — continuo en sombra, punteado en luz',
+    mode: 'retrato',
+    params: { caudal: 260, calado: 1.5, marea: 0, corriente: 0, cauce: 0, deriva: 0, curso: 0, orillas: 4, retratoTrazo: 'guiones', retratoGeo: 'paralela', retratoLongitud: 30, retratoCapas: 2, retratoContorno: 55, retratoDetalle: 45, retratoRelieve: 50, retratoContraste: 55, semilla: 2049 },
+  },
+  {
+    nombre: 'Remolino',
+    descripcion: 'Espiral del centro hacia fuera — el retrato gira en el cauce',
+    mode: 'retrato',
+    params: { caudal: 300, calado: 1.4, marea: 18, corriente: 0, cauce: 0, deriva: 0, curso: 0, orillas: 0, retratoTrazo: 'onda', retratoGeo: 'espiral', retratoLongitud: 40, retratoCapas: 2, retratoContorno: 25, retratoDetalle: 40, retratoRelieve: 45, retratoContraste: 55, semilla: 2049 },
   },
 
   // --- SÍMBOLO ---
@@ -518,8 +534,9 @@ export function coerceParams(input: unknown): TornoParams {
   num('motionSegundos', { min: 1, max: 15, step: 1 });
   if (typeof o.motionLoop === 'boolean') p.motionLoop = o.motionLoop;
   if (o.lienzo === '1080x1080' || o.lienzo === '1920x1080' || o.lienzo === '1080x1920' || o.lienzo === '1080x1440') p.lienzo = o.lienzo;
-  if (o.retratoTrazo === 'onda' || o.retratoTrazo === 'zigzag' || o.retratoTrazo === 'recta' || o.retratoTrazo === 'bucle') p.retratoTrazo = o.retratoTrazo;
+  if (o.retratoTrazo === 'onda' || o.retratoTrazo === 'zigzag' || o.retratoTrazo === 'recta' || o.retratoTrazo === 'bucle' || o.retratoTrazo === 'guiones') p.retratoTrazo = o.retratoTrazo;
   else if (o.retratoTrazo === 'puntos') p.retratoTrazo = 'bucle'; // compat: puntos retirado
+  if (o.retratoGeo === 'paralela' || o.retratoGeo === 'espiral') p.retratoGeo = o.retratoGeo;
   if (o.retratoFit === 'cubrir' || o.retratoFit === 'entera') p.retratoFit = o.retratoFit;
   if (typeof o.retratoCapas === 'number' && Number.isFinite(o.retratoCapas)) p.retratoCapas = Math.min(3, Math.max(1, Math.round(o.retratoCapas)));
   // Compat: recetas antiguas con retratoCruzada (boolean).

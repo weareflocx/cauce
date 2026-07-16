@@ -28,7 +28,10 @@ Abre `http://localhost:5173`.
   de torno): el tono lo dibujan la geometría (amplitud de onda) y la densidad
   (interlíneas en sombra), con canal blanco garantizado — las líneas nunca se funden. Controles: TRAZO (onda / zigzag / recta /
   **bucle** — trocoide que riza sobre sí misma en las sombras, el rizo de buril del
-  grabador), **CAPAS DE TRAMA** (1–3: interlíneas paralelas a medio y cuarto de
+  grabador — / **guiones** — el tono es el ritmo de interrupción: continuo en
+  sombra, punteado en luz, a tresbolillo entre líneas), **GEOMETRÍA** (paralela
+  o **espiral** de Arquímedes desde el centro — una vuelta por paso de trama;
+  arrastrando la foto colocas el ojo del remolino), **CAPAS DE TRAMA** (1–3: interlíneas paralelas a medio y cuarto de
   paso que densifican las sombras — misma dirección y misma fase, nunca tejido:
   el torno densifica, no cruza), **CONTORNO** (campo de
   tangentes: las líneas giran siguiendo las isofotas — envuelven la mejilla en

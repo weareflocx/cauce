@@ -218,7 +218,7 @@ export function renderPortraitTo(
   const flow = new SimplexNoise(p.semilla);
   // RECTA = geometría pura: el raíl apenas se contamina de ruido
   // deriva larga y suave (no ruido nervioso): amplitud y frecuencia bajas
-  const driftAmp = spacing * 0.55 * (p.corriente / 100) * (p.retratoTrazo === 'recta' ? 0.25 : 1);
+  const driftAmp = spacing * 0.55 * (p.corriente / 100) * (p.retratoTrazo === 'recta' || p.retratoTrazo === 'guiones' ? 0.25 : 1);
   let tx: number, ty: number;
   if (p.motionLoop) {
     tx = Math.cos(2 * Math.PI * phase) * 0.34;
@@ -246,7 +246,8 @@ export function renderPortraitTo(
         const tri = ph < d ? (ph / d) * 2 - 1 : 1 - ((ph - d) / (1 - d)) * 2;
         return [0, amp * 1.35 * tri];
       }
-      case 'recta': return [0, 0];
+      case 'recta':
+      case 'guiones': return [0, 0];
       case 'bucle': {
         const tb = t * 1.6;
         return [-amp * 1.25 * Math.sin(tb), amp * Math.cos(tb)];
@@ -254,6 +255,18 @@ export function renderPortraitTo(
       case 'onda':
       default: return [0, amp * Math.sin(t)];
     }
+  };
+
+  // GUIONES: el tono es el RITMO de interrupción — continuo en sombra,
+  // punteado en luz. El paso del guion sale de LONGITUD y la fase viaja con
+  // el loop (los guiones fluyen en MOVIMIENTO sin costura).
+  const dashes = p.retratoTrazo === 'guiones';
+  const dashPeriod = Math.max(6, lambda * 0.5);
+  const dashOn = (arc: number, dark: number): boolean => {
+    const duty = 0.14 + 0.86 * smoothstep(0.06, 0.88, dark);
+    if (duty >= 0.985) return true;
+    const ph = ((arc / dashPeriod - phase) % 1 + 1) % 1;
+    return ph < duty;
   };
 
   const taperAt = (x: number, y: number): number => {
@@ -292,10 +305,13 @@ export function renderPortraitTo(
     // (~1.4 pasos de trama de memoria), como la mano del grabador
     const smoothK = Math.min(0.5, Math.max(0.05, stepS / (spacing * 2.6)));
     // los segmentos más cortos que ~1.6 pasos de trama son motas: fuera
-    const minPts = Math.max(4, Math.ceil((spacing * 3.2) / stepS));
+    const minPts = dashes ? 2 : Math.max(4, Math.ceil((spacing * 3.2) / stepS));
 
     for (let li = 0; li < nSweep; li++) {
       const cRaw = -halfExt + spacing * (li + 0.5 + cShift);
+      // tresbolillo: los guiones de líneas alternas desfasan medio periodo —
+      // sin esto forman columnas verticales en vez de trama de grabado
+      const dashOff = ((li + (cShift > 0 ? 1 : 0)) % 2) * 0.5 * dashPeriod;
       // CAUCE: warp de densidad — compresión al centro, apertura a los bordes
       let c0 = cRaw;
       let pitch = spacing;
@@ -402,6 +418,10 @@ export function renderPortraitTo(
         const px = bx + nvx * off + ux * al;
         const py = by + nvy * off + uy * al;
         if (half < 0.12) { flush(); continue; }
+        if (dashes && !dashOn(s + halfLen + dashOff, darkS)) {
+          const keep = darkS; flush(); darkS = keep; // el hueco no rompe el tono
+          continue;
+        }
         e1.push([px + nvx * half, py + nvy * half]);
         e2.push([px - nvx * half, py - nvy * half]);
       }
@@ -409,53 +429,178 @@ export function renderPortraitTo(
     }
   };
 
+  /**
+   * Barrido en ESPIRAL de Arquímedes desde el centro del lienzo: una vuelta
+   * = un paso de trama, así CAUDAL conserva su significado. Las capas son
+   * BRAZOS intercalados (cShift = fracción de paso → desfase angular) y
+   * CURSO gira el arranque. El tono funciona igual que en paralela: pluma
+   * casi constante, amplitud ∝ tono, guiones si el trazo lo pide.
+   */
+  const sweepEspiral = (
+    noiseOff: number,
+    getHalf: (dark: number, taper: number, pitch: number) => number,
+    cShift = 0,
+    guardMul = 1,
+  ): void => {
+    const ccx = CW / 2, ccy = CH / 2;
+    const bR = spacing / (2 * Math.PI);
+    const rMax = Math.hypot(CW, CH) / 2 + spacing;
+    const stepS = Math.max(CW / 1400, spacing / (p.retratoTrazo === 'bucle' ? 6 : 4));
+    const smoothK = Math.min(0.5, Math.max(0.05, stepS / (spacing * 2.6)));
+    const minPts = dashes ? 2 : Math.max(4, Math.ceil((spacing * 3.2) / stepS));
+    const th0 = (p.curso * Math.PI) / 180 + 2 * Math.PI * cShift;
+
+    let e1: Array<[number, number]> = [];
+    let e2: Array<[number, number]> = [];
+    let lat = 0;
+    let darkS = -1;
+    const flush = (): void => {
+      darkS = -1;
+      if (e1.length >= minPts) {
+        ctx.beginPath();
+        ctx.moveTo(e1[0][0], e1[0][1]);
+        for (let i = 1; i < e1.length; i++) ctx.lineTo(e1[i][0], e1[i][1]);
+        for (let i = e2.length - 1; i >= 0; i--) ctx.lineTo(e2[i][0], e2[i][1]);
+        ctx.closePath();
+        ctx.fill();
+      }
+      e1 = []; e2 = [];
+    };
+
+    let thA = 0.6; // arranca junto al centro
+    let arc = 0;
+    while (bR * thA < rMax) {
+      const r0 = bR * thA;
+      const a = th0 + thA;
+      const nvx = Math.cos(a), nvy = Math.sin(a); // radial = normal al raíl
+      const ux = -nvy, uy = nvx;                  // tangente = avance
+      const bx = ccx + nvx * r0;
+      const by = ccy + nvy * r0;
+      thA += stepS / Math.max(r0, spacing * 0.75);
+      arc += stepS;
+
+      if (bx < areaX0 || bx > areaX1 || by < areaY0 || by > areaY1) { flush(); continue; }
+
+      const xN = (bx / CW) * 1200;
+      const yN = (by / CH) * 900;
+      const uB = (bx - ox) / drawW;
+      const vB = (by - oy) / drawH;
+      const blurL = uB >= 0 && uB <= 1 && vB >= 0 && vB <= 1
+        ? sampleBilinear(grid.blur, grid.sw, grid.sh, uB, vB)
+        : 0.5;
+      const relief = (blurL - 0.5) * -reliefAmt;
+      const drift = driftAmp > 0.001
+        ? flow.fbm(xN * 0.0016 + noiseOff + tx, yN * 0.0016 + ty, 1) * driftAmp
+        : 0;
+      if (contorno > 0.01) {
+        const gxc = blurAtCanvas(bx + eGrad, by) - blurAtCanvas(bx - eGrad, by);
+        const gyc = blurAtCanvas(bx, by + eGrad) - blurAtCanvas(bx, by - eGrad);
+        const gm = Math.hypot(gxc, gyc);
+        if (gm > 1e-4) {
+          let tgx = -gyc / gm, tgy = gxc / gm;
+          let du_ = tgx * ux + tgy * uy;
+          if (du_ < 0) { tgx = -tgx; tgy = -tgy; du_ = -du_; }
+          const dn_ = tgx * nvx + tgy * nvy;
+          const alpha = Math.max(-2, Math.min(2, dn_ / Math.max(0.35, du_)));
+          const strength = Math.min(1, gm * 9) * contorno;
+          lat = lat * 0.965 + alpha * strength * stepS * 0.9;
+        } else {
+          lat *= 0.965;
+        }
+        lat = Math.max(-spacing * 1.2, Math.min(spacing * 1.2, lat));
+      }
+      const off0 = relief + drift + lat;
+
+      const sx = bx + nvx * off0;
+      const sy = by + nvy * off0;
+      const u = (sx - ox) / drawW;
+      const v = (sy - oy) / drawH;
+      let dark = 0;
+      if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+        const blurAtSample = sampleBilinear(grid.blur, grid.sw, grid.sh, u, v);
+        dark = tone(sampleBilinear(grid.lum, grid.sw, grid.sh, u, v), blurAtSample);
+      }
+      if (darkS < 0) darkS = dark;
+      else darkS += (dark - darkS) * smoothK;
+
+      const taper = taperAt(sx, sy);
+      const half = getHalf(darkS, taper, spacing);
+      const ampCap = Math.max(0, spacing * 0.46 * guardMul - half);
+      const amp = Math.min(maxAmp * darkS * taper, ampCap);
+      const [al, pe] = waveVec(arc, amp, k);
+      const off = off0 + pe;
+      const px = bx + nvx * off + ux * al;
+      const py = by + nvy * off + uy * al;
+      if (half < 0.12) { flush(); continue; }
+      if (dashes && !dashOn(arc, darkS)) {
+        const keep = darkS; flush(); darkS = keep;
+        continue;
+      }
+      e1.push([px + nvx * half, py + nvy * half]);
+      e2.push([px - nvx * half, py - nvy * half]);
+    }
+    flush();
+  };
+
   const theta = (p.curso * Math.PI) / 180;
   const capas = Math.min(3, Math.max(1, Math.round(p.retratoCapas)));
+  const espiral = p.retratoGeo === 'espiral';
 
   // PLUMA DEL TORNO: grosor casi constante (respiro del 28%, no modulación AM).
-  // El tono lo llevan la GEOMETRÍA (amplitud de onda ∝ tono) y la DENSIDAD
-  // (interlíneas en sombra); CALADO fija la pluma y sigue siendo editable.
+  // El tono lo llevan la GEOMETRÍA (amplitud de onda ∝ tono, o el ritmo de
+  // los guiones) y la DENSIDAD (interlíneas en sombra); CALADO fija la pluma.
   const mainHalf = (dark: number, taper: number, pitch: number): number => {
     let half = caladoK * (0.72 + 0.28 * dark) * pitch * 0.26;
     half = Math.min(half, pitch * 0.34);
     half *= smoothstep(0.015, 0.14, dark) * (0.35 + 0.65 * taper); // sólo el blanco corta
     return half;
   };
+  // interlínea a MEDIO PASO (sombras) y a CUARTO DE PASO (sombra profunda):
+  // la técnica del torno densifica, no teje — todo paralelo, misma fase.
+  const halfMedio = (dark: number, taper: number, pitch: number): number => {
+    const presence = smoothstep(0.42, 0.72, dark);
+    return Math.min(caladoK * pitch * 0.11 * presence * taper, pitch * 0.085);
+  };
+  const halfCuarto = (dark: number, taper: number, pitch: number): number => {
+    const presence = smoothstep(0.68, 0.93, dark);
+    return Math.min(caladoK * pitch * 0.07 * presence * taper, pitch * 0.045);
+  };
 
-  // ---------- capa 1: trama principal (dirección CURSO) ----------
-  sweep(theta, 0, true, 1, mainHalf);
-
-  // ---------- DERIVA: 2ª trama del grabado rotada — moiré de billete ----------
-  if (p.deriva > 0.01) {
-    ctx.fillStyle = p.colorDeriva;
-    ctx.globalAlpha = 0.6;
-    const derivaRad = (p.deriva * Math.PI) / 180;
-    sweep(theta + derivaRad, 77.7, true, 1, (dark, taper, pitch) =>
-      mainHalf(dark, taper, pitch) * 0.85);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = ink;
-  }
-
-  // ---------- capa 2: interlínea a MEDIO PASO — sombras ----------
-  // Nada de cruces: la técnica del torno densifica, no teje. En sombra
-  // emerge una línea intermedia de la misma familia (misma dirección, mismo
-  // campo, misma fase de onda), y la trama sigue siendo 100% paralela.
-  if (capas >= 2) {
-    sweep(theta, 0, true, 1, (dark, taper, pitch) => {
-      const presence = smoothstep(0.42, 0.72, dark);
-      return Math.min(caladoK * pitch * 0.11 * presence * taper, pitch * 0.085);
-    }, 0.5, 0.6);
-  }
-
-  // ---------- capa 3: interlíneas a CUARTO DE PASO — sombra profunda ----------
-  // El negro casi pleno se construye con densidad 4×, siempre con canal.
-  if (capas >= 3) {
-    const deepHalf = (dark: number, taper: number, pitch: number): number => {
-      const presence = smoothstep(0.68, 0.93, dark);
-      return Math.min(caladoK * pitch * 0.07 * presence * taper, pitch * 0.045);
-    };
-    sweep(theta, 0, true, 1, deepHalf, 0.25, 0.32);
-    sweep(theta, 0, true, 1, deepHalf, 0.75, 0.32);
+  if (espiral) {
+    // ---------- geometría ESPIRAL: brazos intercalados ----------
+    sweepEspiral(0, mainHalf);
+    if (p.deriva > 0.01) {
+      // 2º brazo con su color, desfasado una fracción del paso según DERIVA
+      ctx.fillStyle = p.colorDeriva;
+      ctx.globalAlpha = 0.6;
+      sweepEspiral(77.7, (dark, taper, pitch) => mainHalf(dark, taper, pitch) * 0.85,
+        (p.deriva / 360) * 0.5 || 0.25, 0.6);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = ink;
+    }
+    if (capas >= 2) sweepEspiral(0, halfMedio, 0.5, 0.6);
+    if (capas >= 3) {
+      sweepEspiral(0, halfCuarto, 0.25, 0.32);
+      sweepEspiral(0, halfCuarto, 0.75, 0.32);
+    }
+  } else {
+    // ---------- geometría PARALELA (dirección CURSO) ----------
+    sweep(theta, 0, true, 1, mainHalf);
+    if (p.deriva > 0.01) {
+      // 2ª trama del grabado rotada — moiré de billete, con su color
+      ctx.fillStyle = p.colorDeriva;
+      ctx.globalAlpha = 0.6;
+      const derivaRad = (p.deriva * Math.PI) / 180;
+      sweep(theta + derivaRad, 77.7, true, 1, (dark, taper, pitch) =>
+        mainHalf(dark, taper, pitch) * 0.85);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = ink;
+    }
+    if (capas >= 2) sweep(theta, 0, true, 1, halfMedio, 0.5, 0.6);
+    if (capas >= 3) {
+      sweep(theta, 0, true, 1, halfCuarto, 0.25, 0.32);
+      sweep(theta, 0, true, 1, halfCuarto, 0.75, 0.32);
+    }
   }
 }
 

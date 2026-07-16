@@ -784,7 +784,7 @@ function buildPanel(): void {
   // RETRATO (solo modo retrato)
   if (mode === 'retrato') {
     const trazoWrap = el('div', 'seg');
-    const trazos: [TrazoKind, string][] = [['onda', 'ONDA'], ['zigzag', 'ZIGZAG'], ['recta', 'RECTA'], ['bucle', 'BUCLE']];
+    const trazos: [TrazoKind, string][] = [['onda', 'ONDA'], ['zigzag', 'ZIGZAG'], ['recta', 'RECTA'], ['bucle', 'BUCLE'], ['guiones', 'GUIONES']];
     trazos.forEach(([k, label]) => {
       const b = el('button', params.retratoTrazo === k ? 'active' : '', label) as HTMLButtonElement;
       b.addEventListener('click', () => {
@@ -795,6 +795,23 @@ function buildPanel(): void {
       });
       trazoWrap.appendChild(b);
     });
+
+    // GEOMETRÍA del raíl: trama paralela o espiral desde el centro
+    const geoCtrl = el('div', 'ctrl');
+    geoCtrl.appendChild(el('div', 'ctrl-head', '<span class="ctrl-name">GEOMETRÍA</span>'));
+    const geoWrap = el('div', 'seg');
+    ([['paralela', 'PARALELA'], ['espiral', 'ESPIRAL']] as ['paralela' | 'espiral', string][]).forEach(([kind, label]) => {
+      const b = el('button', params.retratoGeo === kind ? 'active' : '', label) as HTMLButtonElement;
+      b.addEventListener('click', () => {
+        params.retratoGeo = kind;
+        geoWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+        refreshJSON(); render();
+      });
+      geoWrap.appendChild(b);
+    });
+    geoCtrl.appendChild(geoWrap);
+    geoCtrl.appendChild(el('div', 'ctrl-desc', 'ESPIRAL: una vuelta por paso desde el centro — CURSO gira el arranque'));
 
     const loadBtn = el('button', 'chip', 'CARGAR IMAGEN') as HTMLButtonElement;
     loadBtn.addEventListener('click', () => fileInput.click());
@@ -838,6 +855,7 @@ function buildPanel(): void {
     });
     panel.appendChild(group('Retrato (foto → grabado)', [
       trazoWrap,
+      geoCtrl,
       slider('retratoLongitud'), slider('retratoSesgo'),
       capasCtrl,
       fitCtrl,
@@ -845,7 +863,7 @@ function buildPanel(): void {
       slider('retratoContorno'), slider('retratoDetalle'), slider('retratoRelieve'),
       slider('retratoExposicion'), slider('retratoContraste'),
       invToggle, loadBtn,
-      el('div', 'hint-inline', 'Arrastra una foto al lienzo y muévela arrastrando sobre él (ENCUADRE la escala). CURSO inclina la trama; CAUCE comprime la densidad y hace serpentear el canal; DERIVA añade una 2ª trama rotada con su color (moiré de billete). Sube CAUDAL (250–350) para grano fino.'),
+      el('div', 'hint-inline', 'Arrastra una foto al lienzo y muévela arrastrando sobre él (ENCUADRE la escala). GUIONES dibuja el tono con el ritmo: continuo en sombra, punteado en luz (LONGITUD fija el paso del guion). En ESPIRAL las capas son brazos intercalados y DERIVA un 2º brazo con su color. Sube CAUDAL (250–350) para grano fino.'),
     ]));
   }
 

@@ -79,12 +79,22 @@ brandbook; pégala y pulsa APLICAR para reconstruir la pieza exacta.
 
 ## Color
 
-Tres tintas libres en hex — **FONDO** (papel), **TINTA** (trama principal y
-grabado) y **DERIVA** (2ª trama del moiré) — cada una con recuadro de color y
-campo hexadecimal sincronizados. Seis **gamas predefinidas** como punto de
-partida (Tinta, Agua, Inverso, Noche, Señal, Arena). En v0 la elección es
-libre; la restricción de paleta de marca llegará después. Los colores viajan
-en la receta JSON.
+Paleta de marca CAUCE:
+
+| Token | Hex |
+|---|---|
+| Tinta | `#262929` |
+| Papel | `#F0F6F5` |
+| Lima (acento) | `#FBFD9D` |
+| Bruma (secundario) | `#C2CFCF` |
+
+Tres tintas en hex — **FONDO** (papel), **TINTA** (trama principal y grabado)
+y **DERIVA** (2ª trama del moiré) — cada una con recuadro de color y campo
+hexadecimal sincronizados. Seis **gamas predefinidas** construidas sólo con
+los cuatro colores de marca: **Tinta** (base), **Noche** (inverso), **Lima**
+(acento sobre oscuro), **Señal** (moiré lima sobre papel), **Bruma** (fondo
+secundario) y **Contraluz** (lima de fondo). El campo hex sigue admitiendo
+cualquier color para explorar; los colores viajan en la receta JSON.
 
 ## Lienzo
 

@@ -147,9 +147,9 @@ export const DEFAULTS: TornoParams = {
   symBFade: 46,
   symBGiro3d: -16,
   symBModo: 'tinta',
-  colorFondo: '#F6F4EF',
-  colorTinta: '#101012',
-  colorDeriva: '#177E70',
+  colorFondo: '#F0F6F5',
+  colorTinta: '#262929',
+  colorDeriva: '#FBFD9D',
   motionSegundos: 3,
   motionLoop: true,
   lienzo: '1080x1080',
@@ -224,7 +224,7 @@ export const PRESETS: Preset[] = [
     nombre: 'Bitinta',
     descripcion: 'Dos planchas: la 2ª trama en agua, moiré de billete',
     mode: 'patron',
-    params: { curso: 8, caudal: 220, cauce: 45, corriente: 14, torsion: 0, calado: 0.9, marea: 22, deriva: 24, colorDeriva: '#177E70', orillas: 4, semilla: 3777 },
+    params: { curso: 8, caudal: 220, cauce: 45, corriente: 14, torsion: 0, calado: 0.9, marea: 22, deriva: 24, colorDeriva: '#FBFD9D', orillas: 4, semilla: 3777 },
   },
   {
     nombre: 'Remanso',
@@ -268,7 +268,7 @@ export const PRESETS: Preset[] = [
     nombre: 'Pasaporte',
     descripcion: 'Malla bicolor finísima: 2ª trama a 90° en agua',
     mode: 'retrato',
-    params: { caudal: 340, calado: 0.75, marea: 16, corriente: 10, cauce: 20, deriva: 90, colorDeriva: '#177E70', curso: 0, orillas: 4, retratoTrazo: 'onda', retratoLongitud: 25, retratoCapas: 2, retratoContorno: 40, retratoDetalle: 45, retratoRelieve: 30, retratoContraste: 45, semilla: 2049 },
+    params: { caudal: 340, calado: 0.75, marea: 16, corriente: 10, cauce: 20, deriva: 90, colorDeriva: '#FBFD9D', curso: 0, orillas: 4, retratoTrazo: 'onda', retratoLongitud: 25, retratoCapas: 2, retratoContorno: 40, retratoDetalle: 45, retratoRelieve: 30, retratoContraste: 45, semilla: 2049 },
   },
   {
     nombre: 'Filatelia',
@@ -424,13 +424,15 @@ export interface Gama {
   deriva: string;
 }
 
+// Paleta de marca CAUCE: tinta #262929 · papel #F0F6F5 · lima #FBFD9D ·
+// bruma #C2CFCF. Todas las gamas se construyen sólo con estos cuatro.
 export const GAMAS: Gama[] = [
-  { nombre: 'Tinta',   fondo: '#F6F4EF', tinta: '#101012', deriva: '#101012' },
-  { nombre: 'Agua',    fondo: '#F6F4EF', tinta: '#177E70', deriva: '#177E70' },
-  { nombre: 'Inverso', fondo: '#177E70', tinta: '#F6F4EF', deriva: '#F6F4EF' },
-  { nombre: 'Noche',   fondo: '#101012', tinta: '#F6F4EF', deriva: '#177E70' },
-  { nombre: 'Señal',   fondo: '#F6F4EF', tinta: '#101012', deriva: '#E24E1B' },
-  { nombre: 'Arena',   fondo: '#E9E2D6', tinta: '#101012', deriva: '#177E70' },
+  { nombre: 'Tinta',    fondo: '#F0F6F5', tinta: '#262929', deriva: '#262929' },
+  { nombre: 'Noche',    fondo: '#262929', tinta: '#F0F6F5', deriva: '#C2CFCF' },
+  { nombre: 'Lima',     fondo: '#262929', tinta: '#FBFD9D', deriva: '#FBFD9D' },
+  { nombre: 'Señal',    fondo: '#F0F6F5', tinta: '#262929', deriva: '#FBFD9D' },
+  { nombre: 'Bruma',    fondo: '#C2CFCF', tinta: '#262929', deriva: '#F0F6F5' },
+  { nombre: 'Contraluz', fondo: '#FBFD9D', tinta: '#262929', deriva: '#262929' },
 ];
 
 /** Valida un color hex #RRGGBB. */
@@ -473,9 +475,9 @@ export function coerceParams(input: unknown): TornoParams {
   if (isHex(o.colorTinta)) p.colorTinta = o.colorTinta.toUpperCase();
   if (isHex(o.colorDeriva)) p.colorDeriva = o.colorDeriva.toUpperCase();
   // Compat con recetas antiguas (colorway cerrado).
-  if (o.colorway === 'agua/papel') { p.colorFondo = '#F6F4EF'; p.colorTinta = '#177E70'; p.colorDeriva = '#177E70'; }
-  else if (o.colorway === 'papel/agua') { p.colorFondo = '#177E70'; p.colorTinta = '#F6F4EF'; p.colorDeriva = '#F6F4EF'; }
-  else if (o.colorway === 'tinta/papel') { p.colorFondo = '#F6F4EF'; p.colorTinta = '#101012'; p.colorDeriva = '#101012'; }
+  if (o.colorway === 'agua/papel') { p.colorFondo = '#F0F6F5'; p.colorTinta = '#262929'; p.colorDeriva = '#FBFD9D'; }
+  else if (o.colorway === 'papel/agua') { p.colorFondo = '#262929'; p.colorTinta = '#F0F6F5'; p.colorDeriva = '#C2CFCF'; }
+  else if (o.colorway === 'tinta/papel') { p.colorFondo = '#F0F6F5'; p.colorTinta = '#262929'; p.colorDeriva = '#262929'; }
   if (o.forma === 'circulo' || o.forma === 'pildora' || o.forma === 'o-cauce' || o.forma === 'arco'
     || o.forma === 'rombo' || o.forma === 'letra' || o.forma === 'custom') p.forma = o.forma;
   if (typeof o.formaPath === 'string') p.formaPath = o.formaPath;

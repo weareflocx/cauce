@@ -336,6 +336,8 @@ const SLIDER_META: Record<string, { name: string; desc: string }> = {
   symBTrenza: { name: 'TRENZA B', desc: 'Trenzado de la capa B (DELTA)' },
   symPunta: { name: 'PUNTA', desc: 'ESPIRA: inclinación 3D de la banda (vista plana ↔ frontal)' },
   symFade: { name: 'PROFUNDIDAD', desc: 'Atenúa los trazos traseros — 0 = una sola tinta plana (ESPIRA)' },
+  symGiro3d: { name: 'GIRO 3D', desc: 'Guiñada: rotación en el otro plano — la vista 3D (ESPIRA)' },
+  symBGiro3d: { name: 'GIRO 3D B', desc: 'Guiñada de la capa B (ESPIRA)' },
   symBFade: { name: 'PROFUNDIDAD B', desc: 'Atenuación 3D de la capa B (ESPIRA)' },
   symBPunta: { name: 'PUNTA B', desc: 'Vértice de la capa B (ESPIRA)' },
   symBLineas: { name: 'LÍNEAS B', desc: 'Trazos de la capa B' },
@@ -504,7 +506,7 @@ function buildPanel(): void {
 
     panel.appendChild(group('Símbolo · capa A', [
       tipoSeg('symTipo'),
-      slider('symLineas'), slider('symGrosor'), slider('symCurva'), slider('symTrenza'), slider('symPunta'), slider('symFade'),
+      slider('symLineas'), slider('symGrosor'), slider('symCurva'), slider('symTrenza'), slider('symPunta'), slider('symFade'), slider('symGiro3d'),
       slider('symEscala'), slider('symGiro'), slider('symX'), slider('symY'),
       remateWrap,
       el('div', 'hint-inline', 'Pocas líneas, trazo claro: la síntesis del guilloché. El dado 🎲 explora variaciones.'),
@@ -530,7 +532,7 @@ function buildPanel(): void {
       capaBChildren.push(
         tipoSeg('symBTipo'),
         modoWrap,
-        slider('symBLineas'), slider('symBGrosor'), slider('symBCurva'), slider('symBTrenza'), slider('symBPunta'), slider('symBFade'),
+        slider('symBLineas'), slider('symBGrosor'), slider('symBCurva'), slider('symBTrenza'), slider('symBPunta'), slider('symBFade'), slider('symBGiro3d'),
         slider('symBEscala'), slider('symBGiro'), slider('symBX'), slider('symBY'),
         el('div', 'hint-inline', 'CONTRAFORMA pinta con el color del papel: talla espacio negativo sobre la capa A (forma y contraforma).'),
       );

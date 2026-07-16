@@ -35,6 +35,7 @@ interface LayerCfg {
   trenza: number;  // 0–100, los caminos se cruzan y tejen ojos (DELTA)
   punta: number;   // 0–100, unión del óvalo: redondeada ↔ vértice (ESPIRA)
   fade: number;    // 0–100, atenuación por profundidad (0 = una sola tinta)
+  giro3d: number;  // -90..90, guiñada 3D (ESPIRA)
   paper: boolean;  // contraforma
   seed: number;
 }
@@ -360,7 +361,8 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
       const stripW = (0.16 + A * 0.56) * (1 + 0.07 * Math.sin(cycle)); // CURVA → anchura (respira)
       const mPhase = cycle * 0.5;                       // media torsión por ciclo
       const tilt = ((20 + (cfg.punta / 100) * 65) * Math.PI) / 180; // PUNTA → inclinación 3D
-      const yawDeg = -16 + (rnd() - 0.5) * 28 + 4 * Math.sin(cycle); // precesión
+      // GIRO 3D: guiñada — el otro plano de rotación, con precesión animada
+      const yawDeg = cfg.giro3d + (rnd() - 0.5) * 6 + 4 * Math.sin(cycle);
       const yaw = (yawDeg * Math.PI) / 180;
       const persp = 0.48;
       const scale = S * 0.48;
@@ -414,19 +416,22 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
       };
       const addCurrent = (v: number, revs: number, samples: number): void =>
         addPoly((j) => sample((TAU * revs * j) / samples, v), samples);
-      // vuelta impar: UN aro en el plano medio con precesión propia — una
-      // sola curva (no puede desdoblarse) que fluye porque su plano cabecea
-      const addRing = (): void =>
+      // vuelta impar CONECTADA a la cinta: UNA revolución siguiendo la
+      // superficie + costura por el ANCHO de la banda (al acabar la vuelta
+      // el punto cae en la cara -v; el cierre cruza la cintura hasta +v).
+      // La línea vive en la cinta y gira con su torsión — flujo continuo.
+      const addHalfCurrent = (v: number): void =>
         addPoly((j) => {
-          const u = (TAU * j) / 288;
-          return project(Math.cos(u), Math.sin(u), 0.12 * Math.sin(u - cycle));
-        }, 288);
+          if (j <= 144) return sample((TAU * j) / 144, v);
+          const t = (j - 144) / 8; // costura: -v → +v en u = 0
+          return sample(0, -v + 2 * v * t);
+        }, 152);
 
       // LÍNEAS = VUELTAS VISIBLES exactas. Los pares salen de corrientes
-      // Möbius puras (una línea cerrada = dos vueltas); la vuelta impar la
-      // pone el aro del plano medio. n=1 → un solo aro, la marca mínima.
+      // Möbius puras (una línea cerrada = dos vueltas); la impar es la
+      // media-corriente cosida. n=1 → una sola vuelta de la cinta.
       const pares = Math.floor(n / 2);
-      if (n % 2 === 1) addRing();
+      if (n % 2 === 1) addHalfCurrent(stripW * 0.32);
       for (let i = 0; i < pares; i++) {
         const v = (stripW * (i + 0.6)) / (pares + 0.1);
         addCurrent(v, 2, 288);
@@ -486,14 +491,14 @@ export function buildSymbol(p: TornoParams, view: View, phase = 0): SymbolStroke
   const capaA: LayerCfg = {
     tipo: p.symTipo, lineas: p.symLineas, grosor: p.symGrosor, curva: p.symCurva,
     escala: p.symEscala, giro: p.symGiro, x: p.symX, y: p.symY,
-    trenza: p.symTrenza, punta: p.symPunta, fade: p.symFade, paper: false, seed: p.semilla,
+    trenza: p.symTrenza, punta: p.symPunta, fade: p.symFade, giro3d: p.symGiro3d, paper: false, seed: p.semilla,
   };
   const strokes = buildLayer(capaA, view, phase);
   if (p.symB) {
     const capaB: LayerCfg = {
       tipo: p.symBTipo, lineas: p.symBLineas, grosor: p.symBGrosor, curva: p.symBCurva,
       escala: p.symBEscala, giro: p.symBGiro, x: p.symBX, y: p.symBY,
-      trenza: p.symBTrenza, punta: p.symBPunta, fade: p.symBFade, paper: p.symBModo === 'contraforma', seed: (p.semilla ^ 0x51ed2705) >>> 0,
+      trenza: p.symBTrenza, punta: p.symBPunta, fade: p.symBFade, giro3d: p.symBGiro3d, paper: p.symBModo === 'contraforma', seed: (p.semilla ^ 0x51ed2705) >>> 0,
     };
     strokes.push(...buildLayer(capaB, view, phase));
   }

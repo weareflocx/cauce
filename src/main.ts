@@ -125,6 +125,13 @@ function currentShape(): FrameShape | undefined {
 
 let animTime = 0;
 let animHandle = 0;
+// referencias vivas del timeline (se rehacen en buildPanel)
+let frameUI: { input: HTMLInputElement; val: HTMLElement; vivoToggle: HTMLElement } | null = null;
+
+function frameLabel(): string {
+  const pct = ((animTime % 1) + 1) % 1;
+  return `${Math.round(pct * 100)}% · ${(pct * params.motionSegundos).toFixed(2)}s`;
+}
 
 // ---------------- historial (deshacer / rehacer) ----------------
 const HIST_MAX = 50;
@@ -273,6 +280,10 @@ function tickAnim(): void {
   // Con LOOP PERFECTO la fase envuelve en [0,1) (círculo en el ruido);
   // sin loop crece libre — la corriente nunca vuelve sobre sí misma.
   animTime = params.motionLoop ? (animTime + inc) % 1 : animTime + inc;
+  if (frameUI) {
+    frameUI.input.value = String((((animTime % 1) + 1) % 1) * 100);
+    frameUI.val.textContent = frameLabel();
+  }
   render();
   animHandle = requestAnimationFrame(tickAnim);
 }
@@ -283,8 +294,7 @@ function syncAnim(): void {
   } else if (!shouldRun && animHandle) {
     cancelAnimationFrame(animHandle);
     animHandle = 0;
-    animTime = 0;
-    render();
+    render(); // el fotograma elegido se conserva (línea de tiempo)
   }
 }
 
@@ -666,8 +676,39 @@ function buildPanel(): void {
   const loopToggle = makeToggle('LOOP PERFECTO', params.motionLoop, (on) => {
     params.motionLoop = on; refreshJSON(); updateMotion(); render();
   });
+
+  // FOTOGRAMA — línea de tiempo del bucle: arrastra para pausar y buscar
+  // el instante exacto; los exports SVG/PNG capturan ese fotograma
+  const frameCtrl = el('div', 'ctrl');
+  frameCtrl.appendChild(el('div', 'ctrl-head',
+    '<span class="ctrl-name">FOTOGRAMA</span><span class="ctrl-val"></span>'));
+  const frameInput = document.createElement('input');
+  frameInput.type = 'range';
+  frameInput.min = '0';
+  frameInput.max = '100';
+  frameInput.step = '0.1';
+  frameInput.value = String((((animTime % 1) + 1) % 1) * 100);
+  const frameVal = frameCtrl.querySelector('.ctrl-val') as HTMLElement;
+  frameVal.textContent = frameLabel();
+  frameInput.addEventListener('input', () => {
+    if (animHandle) { // arrastrar el timeline pausa la reproducción
+      cancelAnimationFrame(animHandle);
+      animHandle = 0;
+      params.vivo = false;
+      vivoToggle.classList.remove('on');
+      refreshJSON();
+      updateMotion();
+    }
+    animTime = parseFloat(frameInput.value) / 100;
+    frameVal.textContent = frameLabel();
+    scheduleRender();
+  });
+  frameCtrl.appendChild(frameInput);
+  frameCtrl.appendChild(el('div', 'ctrl-desc', 'Pausa y busca el instante exacto — la captura sale de este fotograma'));
+  frameUI = { input: frameInput, val: frameVal, vivoToggle };
+
   updateMotion();
-  panel.appendChild(group('Movimiento', [vivoToggle, durCtrl, loopToggle, motionRow, motionMsg]));
+  panel.appendChild(group('Movimiento', [vivoToggle, durCtrl, loopToggle, frameCtrl, motionRow, motionMsg]));
 
   // FORMA (solo modo forma)
   if (mode === 'forma') {

@@ -387,8 +387,8 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
       const bins: string[] = Array(BINS).fill('');
       // tramos agrupados por RACHAS de bin: un remate sólo al cambiar de
       // profundidad — sin puntos oscuros por solape de alfas
-      const addCurrent = (v: number, revs: number, samples: number): void => {
-        let prev = sample(0, v);
+      const addPoly = (getP: (j: number) => [number, number, number], samples: number): void => {
+        let prev = getP(0);
         let run = '';
         let runBin = -1;
         const flushRun = (): void => {
@@ -396,8 +396,7 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
           run = '';
         };
         for (let j = 1; j <= samples; j++) {
-          const u = (TAU * revs * j) / samples;
-          const cur = sample(u, v);
+          const cur = getP(j);
           const depth = (prev[2] + cur[2]) * 0.5;
           const nd = Math.min(0.999, Math.max(0, 0.5 + depth / (2 * depthRange)));
           const b = BINS === 1 ? 0 : Math.floor(nd * BINS);
@@ -413,16 +412,21 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
         }
         flushRun();
       };
+      const addCurrent = (v: number, revs: number, samples: number): void =>
+        addPoly((j) => sample((TAU * revs * j) / samples, v), samples);
+      // vuelta impar: UN aro en el plano medio con precesión propia — una
+      // sola curva (no puede desdoblarse) que fluye porque su plano cabecea
+      const addRing = (): void =>
+        addPoly((j) => {
+          const u = (TAU * j) / 288;
+          return project(Math.cos(u), Math.sin(u), 0.12 * Math.sin(u - cycle));
+        }, 288);
 
-      // LÍNEAS suma UNA vuelta visible por paso (visibles = n + 1, desde el
-      // mínimo topológico de 2). Los pares salen de corrientes normales (una
-      // línea = dos vueltas, Möbius); la vuelta impar la pone una corriente
-      // CASI-EJE: sus dos vueltas casi coinciden → se lee como un solo aro,
-      // y al no estar en v = 0 exacto sigue fluyendo con la torsión.
-      const visibles = n + 1;
-      const pares = Math.floor(visibles / 2);
-      const central = visibles % 2 === 1;
-      if (central) addCurrent(stripW * 0.05, 2, 288);
+      // LÍNEAS = VUELTAS VISIBLES exactas. Los pares salen de corrientes
+      // Möbius puras (una línea cerrada = dos vueltas); la vuelta impar la
+      // pone el aro del plano medio. n=1 → un solo aro, la marca mínima.
+      const pares = Math.floor(n / 2);
+      if (n % 2 === 1) addRing();
       for (let i = 0; i < pares; i++) {
         const v = (stripW * (i + 0.6)) / (pares + 0.1);
         addCurrent(v, 2, 288);

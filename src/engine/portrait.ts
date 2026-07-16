@@ -208,14 +208,17 @@ export function renderPortraitTo(
   // --- CAUCE: compresión de trama + meandro del canal (la firma) ---
   // k>1 aprieta las líneas hacia el centro del barrido y las abre a los
   // bordes; el grosor se compensa con el paso local para conservar el tono.
-  const kCauce = 1 + (p.cauce / 100) * 0.9;
-  const chAmp = (p.cauce / 100) * Math.min(CW, CH) * 0.10;
+  // En RETRATO el canal es un GESTO sutil, no la textura protagonista: la
+  // foto manda. Magnitudes muy por debajo de las de PATRÓN.
+  const kCauce = 1 + (p.cauce / 100) * 0.42;
+  const chAmp = (p.cauce / 100) * Math.min(CW, CH) * 0.028;
   const chan = new SimplexNoise((p.semilla ^ 0x9e3779b9) >>> 0);
 
   // --- campo de flujo: deriva circular (loop perfecto) o libre ---
   const flow = new SimplexNoise(p.semilla);
   // RECTA = geometría pura: el raíl apenas se contamina de ruido
-  const driftAmp = spacing * 2.2 * (p.corriente / 100) * (p.retratoTrazo === 'recta' ? 0.25 : 1);
+  // deriva larga y suave (no ruido nervioso): amplitud y frecuencia bajas
+  const driftAmp = spacing * 0.55 * (p.corriente / 100) * (p.retratoTrazo === 'recta' ? 0.25 : 1);
   let tx: number, ty: number;
   if (p.motionLoop) {
     tx = Math.cos(2 * Math.PI * phase) * 0.34;
@@ -285,9 +288,9 @@ export function renderPortraitTo(
     const stepS = Math.max(CW / 1400, spacing / (p.retratoTrazo === 'bucle' ? 6 : 4));
     // suavizado del tono A LO LARGO de la línea: el grosor evoluciona fluido
     // (~1.4 pasos de trama de memoria), como la mano del grabador
-    const smoothK = Math.min(0.5, Math.max(0.08, stepS / (spacing * 1.4)));
+    const smoothK = Math.min(0.5, Math.max(0.05, stepS / (spacing * 2.6)));
     // los segmentos más cortos que ~1.6 pasos de trama son motas: fuera
-    const minPts = Math.max(3, Math.ceil((spacing * 1.6) / stepS));
+    const minPts = Math.max(4, Math.ceil((spacing * 3.2) / stepS));
 
     for (let li = 0; li < nSweep; li++) {
       const cRaw = -halfExt + spacing * (li + 0.5);
@@ -344,7 +347,7 @@ export function renderPortraitTo(
 
         // deriva del campo (corriente)
         const drift = driftAmp > 0.001
-          ? flow.fbm(xN * 0.004 + noiseOff + tx, yN * 0.004 + ty, 2) * driftAmp
+          ? flow.fbm(xN * 0.0016 + noiseOff + tx, yN * 0.0016 + ty, 1) * driftAmp
           : 0;
 
         // CONTORNO: gradiente de la luminancia difuminada → tangente de
@@ -364,7 +367,7 @@ export function renderPortraitTo(
           } else {
             lat *= 0.965;
           }
-          lat = Math.max(-pitch * 3, Math.min(pitch * 3, lat));
+          lat = Math.max(-pitch * 1.2, Math.min(pitch * 1.2, lat));
         }
 
         const off0 = relief + drift + lat;
@@ -385,13 +388,17 @@ export function renderPortraitTo(
         else darkS += (dark - darkS) * smoothK;
 
         const taper = taperAt(sx, sy);
-        const amp = withWave ? maxAmp * ampK * darkS * taper : 0;
+        const half = getHalf(darkS, taper, pitch);
+        // CANAL BLANCO GARANTIZADO: la onda se acota para que nunca invada el
+        // paso del vecino (onda + grosor ≤ medio paso). En sombras el trazo
+        // engorda y la onda se aplana — como en el grabado real; sin este
+        // tope las líneas gruesas ondulantes se tocaban y granulaban la trama.
+        const ampCap = Math.max(0, pitch * 0.46 - half);
+        const amp = withWave ? Math.min(maxAmp * ampK * darkS * taper, ampCap) : 0;
         const [al, pe] = withWave ? waveVec(s + halfLen, amp, k * kMul) : [0, 0];
         const off = off0 + pe;
         const px = bx + nvx * off + ux * al;
         const py = by + nvy * off + uy * al;
-
-        const half = getHalf(darkS, taper, pitch);
         if (half < 0.12) { flush(); continue; }
         e1.push([px + nvx * half, py + nvy * half]);
         e2.push([px - nvx * half, py - nvy * half]);
@@ -407,7 +414,7 @@ export function renderPortraitTo(
   const mainHalf = (dark: number, taper: number, pitch: number): number => {
     let half = caladoK * (0.10 + 0.90 * dark) * pitch * 0.48;
     half = Math.min(half, pitch * 0.44);
-    half *= smoothstep(0.030, 0.10, dark) * (0.35 + 0.65 * taper); // dropout en luces
+    half *= smoothstep(0.012, 0.16, dark) * (0.35 + 0.65 * taper); // dropout suave en luces
     return half;
   };
 

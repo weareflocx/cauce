@@ -541,10 +541,17 @@ function buildPanel(): void {
   }
 
   if (mode !== 'symbol') {
-  panel.appendChild(group('Flujo', [slider('curso'), slider('caudal'), slider('cauce'), slider('corriente'), slider('torsion')]));
+  // TORSIÓN y RIBERA sólo operan en PATRÓN/FORMA: en RETRATO serían mandos
+  // muertos (el motor de grabado no los lee) — fuera del panel.
+  const flujoCtrls = [slider('curso'), slider('caudal'), slider('cauce'), slider('corriente')];
+  if (mode !== 'retrato') flujoCtrls.push(slider('torsion'));
+  panel.appendChild(group('Flujo', flujoCtrls));
 
   // LÍNEA
-  panel.appendChild(group('Línea', [slider('calado'), slider('marea'), slider('orillas'), slider('ribera'), slider('deriva')]));
+  const lineaCtrls = [slider('calado'), slider('marea'), slider('orillas')];
+  if (mode !== 'retrato') lineaCtrls.push(slider('ribera'));
+  lineaCtrls.push(slider('deriva'));
+  panel.appendChild(group('Línea', lineaCtrls));
   }
 
   // SEMILLA

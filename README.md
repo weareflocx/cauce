@@ -49,6 +49,10 @@ Abre `http://localhost:5173`.
   sembrados: **ONDA** (marca de bandera), **ABANICO** (creciente de arcos),
   **ALA** (haz radial), **ARCOS** (puerta anidada) y **CRUCE** (tejido con calado
   de papel). Controles: LÍNEAS, GROSOR, CURVA, ESCALA, GIRO y REMATE (romo/recto).
+  ESPIRA implementa el modelo **Möbius Flow 1.1** de Cauce System: CIRCULACIÓN
+  (0–4, el material fluye a través de la torsión — la hace visible en
+  movimiento) y RESPIRACIÓN (la anchura de banda late con el ciclo); el preset
+  **Torrente** es la receta base del logo CAUCE.
   El dado 🎲 explora variaciones de la misma plantilla; MOVIMIENTO anima la onda.
 
 ## Vocabulario de parámetros

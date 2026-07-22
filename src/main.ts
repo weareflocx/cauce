@@ -337,6 +337,10 @@ const SLIDER_META: Record<string, { name: string; desc: string }> = {
   symPunta: { name: 'PUNTA', desc: 'ESPIRA: inclinación 3D de la banda (vista plana ↔ frontal)' },
   symFade: { name: 'PROFUNDIDAD', desc: 'Atenúa los trazos traseros — 0 = una sola tinta plana (ESPIRA)' },
   symGiro3d: { name: 'GIRO 3D', desc: 'Guiñada: rotación en el otro plano — la vista 3D (ESPIRA)' },
+  symCirculacion: { name: 'CIRCULACIÓN', desc: 'ESPIRA: el material fluye por la banda — la torsión se ve girar (0 = quieta)' },
+  symRespiracion: { name: 'RESPIRACIÓN', desc: 'ESPIRA: la anchura de banda late con el ciclo' },
+  symBCirculacion: { name: 'CIRCULACIÓN B', desc: 'Flujo por la banda de la capa B (ESPIRA)' },
+  symBRespiracion: { name: 'RESPIRACIÓN B', desc: 'Latido de anchura de la capa B (ESPIRA)' },
   symBGiro3d: { name: 'GIRO 3D B', desc: 'Guiñada de la capa B (ESPIRA)' },
   symBFade: { name: 'PROFUNDIDAD B', desc: 'Atenuación 3D de la capa B (ESPIRA)' },
   symBPunta: { name: 'PUNTA B', desc: 'Vértice de la capa B (ESPIRA)' },
@@ -507,6 +511,7 @@ function buildPanel(): void {
     panel.appendChild(group('Símbolo · capa A', [
       tipoSeg('symTipo'),
       slider('symLineas'), slider('symGrosor'), slider('symCurva'), slider('symTrenza'), slider('symPunta'), slider('symFade'), slider('symGiro3d'),
+      slider('symCirculacion'), slider('symRespiracion'),
       slider('symEscala'), slider('symGiro'), slider('symX'), slider('symY'),
       remateWrap,
       el('div', 'hint-inline', 'Pocas líneas, trazo claro: la síntesis del guilloché. El dado 🎲 explora variaciones.'),
@@ -533,6 +538,7 @@ function buildPanel(): void {
         tipoSeg('symBTipo'),
         modoWrap,
         slider('symBLineas'), slider('symBGrosor'), slider('symBCurva'), slider('symBTrenza'), slider('symBPunta'), slider('symBFade'), slider('symBGiro3d'),
+        slider('symBCirculacion'), slider('symBRespiracion'),
         slider('symBEscala'), slider('symBGiro'), slider('symBX'), slider('symBY'),
         el('div', 'hint-inline', 'CONTRAFORMA pinta con el color del papel: talla espacio negativo sobre la capa A (forma y contraforma).'),
       );

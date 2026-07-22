@@ -47,6 +47,8 @@ export interface TornoParams {
   symPunta: number;      // 0–100, unión del óvalo: redondeada ↔ vértice (ESPIRA)
   symFade: number;       // 0–100, atenuación por profundidad (0 = una sola tinta)
   symGiro3d: number;     // -90..90, guiñada: rotación 3D en el otro plano (ESPIRA)
+  symCirculacion: number; // 0–4, fases de torsión por ciclo: el material fluye por la banda (ESPIRA · Möbius 1.1)
+  symRespiracion: number; // 0–25, latido de la anchura de banda con el ciclo (ESPIRA · Möbius 1.1)
   symRemate: RemateKind; // terminal del trazo (ambas capas)
 
   // --- modo SÍMBOLO (capa B, combinable) ---
@@ -63,6 +65,8 @@ export interface TornoParams {
   symBPunta: number;
   symBFade: number;
   symBGiro3d: number;
+  symBCirculacion: number;
+  symBRespiracion: number;
   symBModo: CapaModo;    // tinta = suma; contraforma = talla espacio negativo
 
   // --- modo RETRATO ---
@@ -134,6 +138,8 @@ export const DEFAULTS: TornoParams = {
   symPunta: 0,
   symFade: 46,
   symGiro3d: -16,
+  symCirculacion: 1,
+  symRespiracion: 7,
   symRemate: 'recto',
   symB: false,
   symBTipo: 'onda',
@@ -148,6 +154,8 @@ export const DEFAULTS: TornoParams = {
   symBPunta: 0,
   symBFade: 46,
   symBGiro3d: -16,
+  symBCirculacion: 1,
+  symBRespiracion: 7,
   symBModo: 'tinta',
   colorFondo: '#F0F6F5',
   colorTinta: '#262929',
@@ -302,6 +310,12 @@ export const PRESETS: Preset[] = [
 
   // --- SÍMBOLO ---
   {
+    nombre: 'Torrente',
+    descripcion: 'Möbius Flow 1.1 — la circulación revela la torsión: base del logo CAUCE',
+    mode: 'symbol',
+    params: { symTipo: 'espira', symLineas: 11, symGrosor: 18, symCurva: 55, symEscala: 66, symGiro: 330, symX: 0, symY: 0, symTrenza: 0, symPunta: 57, symFade: 34, symGiro3d: -14, symCirculacion: 1, symRespiracion: 6, symRemate: 'romo', symB: false, semilla: 2049 },
+  },
+  {
     nombre: 'Caudal',
     descripcion: 'Marca de bandera: cinco ondas en fase',
     mode: 'symbol',
@@ -420,6 +434,8 @@ export const RANGES: Record<string, Range> = {
   symPunta:  { min: 0,   max: 100, step: 1, unit: '' },
   symFade:   { min: 0,   max: 100, step: 1, unit: '' },
   symGiro3d: { min: -90, max: 90,  step: 1, unit: '°' },
+  symCirculacion: { min: 0, max: 4, step: 1, unit: '' },
+  symRespiracion: { min: 0, max: 25, step: 1, unit: '' },
   symBLineas: { min: 1,  max: 12,  step: 1, unit: '' },
   symBGrosor: { min: 5,  max: 100, step: 1, unit: '' },
   symBCurva:  { min: 0,  max: 100, step: 1, unit: '' },
@@ -431,6 +447,8 @@ export const RANGES: Record<string, Range> = {
   symBPunta:  { min: 0,   max: 100, step: 1, unit: '' },
   symBFade:   { min: 0,   max: 100, step: 1, unit: '' },
   symBGiro3d: { min: -90, max: 90,  step: 1, unit: '°' },
+  symBCirculacion: { min: 0, max: 4, step: 1, unit: '' },
+  symBRespiracion: { min: 0, max: 25, step: 1, unit: '' },
 };
 
 /** Gamas cromáticas predefinidas — puntos de partida, no límites (v0). */
@@ -528,6 +546,8 @@ export function coerceParams(input: unknown): TornoParams {
   num('symPunta', RANGES.symPunta);
   num('symFade', RANGES.symFade);
   num('symGiro3d', RANGES.symGiro3d);
+  num('symCirculacion', RANGES.symCirculacion);
+  num('symRespiracion', RANGES.symRespiracion);
   if (typeof o.symB === 'boolean') p.symB = o.symB;
   if (symKind(o.symBTipo)) p.symBTipo = o.symBTipo;
   if (o.symBModo === 'tinta' || o.symBModo === 'contraforma') p.symBModo = o.symBModo;
@@ -542,6 +562,8 @@ export function coerceParams(input: unknown): TornoParams {
   num('symBPunta', RANGES.symBPunta);
   num('symBFade', RANGES.symBFade);
   num('symBGiro3d', RANGES.symBGiro3d);
+  num('symBCirculacion', RANGES.symBCirculacion);
+  num('symBRespiracion', RANGES.symBRespiracion);
   if (typeof o.vivo === 'boolean') p.vivo = o.vivo;
   num('motionSegundos', { min: 1, max: 15, step: 1 });
   if (typeof o.motionLoop === 'boolean') p.motionLoop = o.motionLoop;

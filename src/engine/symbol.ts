@@ -36,6 +36,8 @@ interface LayerCfg {
   punta: number;   // 0–100, unión del óvalo: redondeada ↔ vértice (ESPIRA)
   fade: number;    // 0–100, atenuación por profundidad (0 = una sola tinta)
   giro3d: number;  // -90..90, guiñada 3D (ESPIRA)
+  circulacion: number; // 0–4, fases de torsión por ciclo (ESPIRA · Möbius 1.1)
+  respiracion: number; // 0–25, latido de la anchura de banda (ESPIRA · Möbius 1.1)
   paper: boolean;  // contraforma
   seed: number;
 }
@@ -358,11 +360,18 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
       const width = wGlobal;
       const halfTwists = 1 + 2 * Math.round((cfg.trenza / 100) * 2); // TRENZA → 1,3,5
       const cycle = TAU * (((phase % 1) + 1) % 1);
-      const stripW = (0.16 + A * 0.56) * (1 + 0.07 * Math.sin(cycle)); // CURVA → anchura (respira)
-      const mPhase = cycle * 0.5;                       // media torsión por ciclo
+      // MÖBIUS 1.1: RESPIRACIÓN — la anchura de banda late con el ciclo
+      const stripW = (0.16 + A * 0.56) * (1 + (cfg.respiracion / 100) * Math.sin(cycle));
+      // MÖBIUS 1.1: CIRCULACIÓN — la fase de la sección avanza con el tiempo
+      // y el material FLUYE a través de la torsión (media torsión por fase de
+      // circulación y ciclo). Es lo que hace la torsión visible: las
+      // corrientes cerradas caen sobre sí mismas — el loop sigue sin costura.
+      // 0 = banda quieta (sólo precesión y respiración).
+      const circ = Math.max(0, Math.min(4, Math.round(cfg.circulacion)));
+      const mPhase = circ * cycle * 0.5;
       const tilt = ((20 + (cfg.punta / 100) * 65) * Math.PI) / 180; // PUNTA → inclinación 3D
       // GIRO 3D: guiñada — el otro plano de rotación, con precesión animada
-      const yawDeg = cfg.giro3d + (rnd() - 0.5) * 6 + 4 * Math.sin(cycle);
+      const yawDeg = cfg.giro3d + (rnd() - 0.5) * 6 + (3.5 + circ * 1.5) * Math.sin(cycle);
       const yaw = (yawDeg * Math.PI) / 180;
       const persp = 0.48;
       const scale = S * 0.48;
@@ -431,7 +440,10 @@ function buildLayer(cfg: LayerCfg, view: View, phase: number): SymbolStroke[] {
       // Möbius puras (una línea cerrada = dos vueltas); la impar es la
       // media-corriente cosida. n=1 → una sola vuelta de la cinta.
       const pares = Math.floor(n / 2);
-      if (n % 2 === 1) addHalfCurrent(stripW * 0.32);
+      // la vuelta impar FLUYE con la circulación: v·cos(fase) la hace caer a
+      // través del plano medio y al cerrar el ciclo (cos(kπ) = ±1) cae sobre
+      // la corriente espejo — continua, sin salto en la costura del loop
+      if (n % 2 === 1) addHalfCurrent(stripW * 0.32 * Math.cos(mPhase) || stripW * 0.02);
       for (let i = 0; i < pares; i++) {
         const v = (stripW * (i + 0.6)) / (pares + 0.1);
         addCurrent(v, 2, 288);
@@ -491,14 +503,16 @@ export function buildSymbol(p: TornoParams, view: View, phase = 0): SymbolStroke
   const capaA: LayerCfg = {
     tipo: p.symTipo, lineas: p.symLineas, grosor: p.symGrosor, curva: p.symCurva,
     escala: p.symEscala, giro: p.symGiro, x: p.symX, y: p.symY,
-    trenza: p.symTrenza, punta: p.symPunta, fade: p.symFade, giro3d: p.symGiro3d, paper: false, seed: p.semilla,
+    trenza: p.symTrenza, punta: p.symPunta, fade: p.symFade, giro3d: p.symGiro3d,
+    circulacion: p.symCirculacion, respiracion: p.symRespiracion, paper: false, seed: p.semilla,
   };
   const strokes = buildLayer(capaA, view, phase);
   if (p.symB) {
     const capaB: LayerCfg = {
       tipo: p.symBTipo, lineas: p.symBLineas, grosor: p.symBGrosor, curva: p.symBCurva,
       escala: p.symBEscala, giro: p.symBGiro, x: p.symBX, y: p.symBY,
-      trenza: p.symBTrenza, punta: p.symBPunta, fade: p.symBFade, giro3d: p.symBGiro3d, paper: p.symBModo === 'contraforma', seed: (p.semilla ^ 0x51ed2705) >>> 0,
+      trenza: p.symBTrenza, punta: p.symBPunta, fade: p.symBFade, giro3d: p.symBGiro3d,
+      circulacion: p.symBCirculacion, respiracion: p.symBRespiracion, paper: p.symBModo === 'contraforma', seed: (p.semilla ^ 0x51ed2705) >>> 0,
     };
     strokes.push(...buildLayer(capaB, view, phase));
   }

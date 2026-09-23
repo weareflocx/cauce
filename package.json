@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:site": "tsc && vite build --outDir site/caz --emptyOutDir && node scripts/assemble-site.mjs"
   },
   "devDependencies": {
     "typescript": "~5.6.2",

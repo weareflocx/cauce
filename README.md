@@ -124,6 +124,12 @@ El formato va en la receta JSON; los presets no lo tocan.
   fotograma coincide con el primero. El GIF se codifica en cliente (encoder GIF89a
   propio, paleta duotono); el WebM se graba en tiempo real vía `MediaRecorder`.
 
+## Publicar
+
+`npm run build:site` genera `site/`: una portada con todas las herramientas CAUCE y CAZ
+en `/caz/`. Con el repo conectado a Netlify se publica en cada push (`netlify.toml`).
+Guía completa en [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md).
+
 ## Stack
 
 Vite + TypeScript vanilla. SVG para PATRÓN/FORMA (export vectorial nativo),

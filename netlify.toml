@@ -1,0 +1,26 @@
+# Sitio agregador de herramientas CAUCE: portada + CAZ en /caz/.
+[build]
+  command = "npm run build:site"
+  publish = "site"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Assets con hash de Vite: caché permanente.
+[[headers]]
+  for = "/caz/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Robots-Tag = "noindex, nofollow"
+
+# /caz sin barra final → /caz/ (las rutas de assets son relativas).
+[[redirects]]
+  from = "/caz"
+  to = "/caz/"
+  status = 301

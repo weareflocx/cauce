@@ -130,6 +130,10 @@ El formato va en la receta JSON; los presets no lo tocan.
 en `/caz/`. Con el repo conectado a Netlify se publica en cada push (`netlify.toml`).
 Guía completa en [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md).
 
+Para integrar CAZ con las demás herramientas del ecosistema (arquitectura,
+contrato de la receta y decisiones pendientes), ver
+[`docs/INTEGRACION.md`](docs/INTEGRACION.md).
+
 ## Stack
 
 Vite + TypeScript vanilla. SVG para PATRÓN/FORMA (export vectorial nativo),

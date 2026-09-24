@@ -115,12 +115,12 @@ Detalle de despliegue en [`DESPLIEGUE.md`](DESPLIEGUE.md).
 |---|---|---|---|
 | Repo | `weareflocx/cauce` | `weareflocx/coucesystem` | `weareflocx/guilloche` |
 | Qué hace | Genera el lenguaje de línea: patrón, retrato, forma y símbolo | Estudio de campos de flujo y Möbius Flow 3D, con vídeo | Aplica grabado guilloché a fotos y vídeos existentes |
-| Stack | Vite + TS, sin dependencias | Canvas 2D, Three.js y WebGPU | Vite + JS, Canvas 2D |
+| Stack | Vite + TS, sin dependencias | Canvas 2D, Three.js y WebGPU | Vite + JS, Canvas 2D (guía propia en su `docs/INTEGRACION.md`) |
 | Backend | Ninguno | Netlify Functions + Blobs | Ninguno |
 | Despliegue | Hub en Netlify, `/caz/` | Netlify propio | Artifact de claude.ai |
 | Guardado | Recetas en `localStorage` | Biblioteca en Netlify Blobs | Presets compartidos en el artifact; `localStorage` fuera |
 | Formato | Receta JSON (`_caz: v0`) | Proyectos de su biblioteca | Preset `{name, patternId, params, colors}` |
-| Paleta | Tinta `#262929`, papel `#F0F6F5`, lima `#FBFD9D`, bruma `#C2CFCF` | Crema `#F4F3EE`, `#11110F`, `#8ECFC2`… | Figma: `#1F2222`, `#383A73`, `#75D0CD`, `#B9E4F0`, `#E6F4F3` |
+| Paleta | Tinta `#262929`, papel `#F0F6F5`, lima `#FBFD9D`, bruma `#C2CFCF` | Crema `#F4F3EE`, `#11110F`, `#8ECFC2`… | La de CAZ, con sus 14 gamas (desde la v0.2) |
 
 ## Decisiones pendientes antes de integrar
 
@@ -128,11 +128,12 @@ Ninguna es técnica en sentido estricto: requieren una decisión de marca o
 de producto, así que conviene cerrarlas con Sergio antes de escribir
 código común.
 
-1. **Paleta canónica.** Las tres herramientas usan tres paletas distintas
-   sin un solo color en común. Un ecosistema necesita una. La fuente de
-   verdad de la marca es el archivo de Figma CAUCE — WORK (de ahí sale la
-   de Guilloché); lo natural sería extraer esos tokens a un paquete
-   compartido que consuman las tres.
+1. **Paleta canónica.** Guilloché adoptó la paleta y el sistema visual de
+   CAZ el 24/09/2026; Cauce System sigue con la suya, sin colores en
+   común. Las gamas de CAZ ya están duplicadas en Guilloché: lo natural
+   es extraerlas a un paquete compartido de tokens que consuman las tres.
+   Queda por confirmar qué papel juegan las variables del archivo de
+   Figma CAUCE — WORK, que definen otra paleta.
 2. **Versión del esquema de receta.** La receta dice `"_caz": "v0"`
    mientras la app va por la 1.1.0. Hay recetas guardadas en el brandbook,
    así que no se debe cambiar a la ligera: o se documenta como versión de
